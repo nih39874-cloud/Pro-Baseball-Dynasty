@@ -90,7 +90,10 @@ def extract(games):
     out=[]
     for p in players.values():
         # Preserve traceable team movements; earliest team initializes the alternate-history 2024 season.
-        p['team_history']=[{'date':d,'team':t} for d,t in sorted(set(p['team_history']))]
+        history=sorted(set(p['team_history']))
+        if history:
+            p['first_seen'],p['first_team']=history[0]
+        p['team_history']=[{'date':d,'team':t} for d,t in history]
         out.append(p)
     out.sort(key=lambda p:(p['first_team'],p['full_name'],p['source_player_id']))
     return {'dataset':'2024 CPBL game-appearance player index',
