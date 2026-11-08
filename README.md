@@ -64,3 +64,12 @@ node scripts/provision-users.mjs
 ## 資料授權
 
 野球革命 Open Data：https://github.com/rebas-tw/rebas.tw-open-data （ODC-By；使用時依條款標示來源）。其他中職／Trackman／肖像／商標資料須分別確認使用授權，不能把網站內容任意整批轉載。
+
+## 聯盟時間分離（2026-11-08 更新）
+
+- GM：`clock_enabled=true`，獨立每分鐘計時；真實六隊球員名單未齊前，
+  `is_ready=false`，僅記錄心跳，不產生空白比賽及不推進虛構戰績。
+- 中職正式六隊：`clock_enabled=false`、`is_ready=false`，不會隨排程推進，
+  必須經過資料及帳號驗證且正式上線後才解鎖。
+- 排程工作：`diamond-league-minute` 觸發 `private.tick_all(now())`。
+- 遷移：`sql/007_gm_clock_and_official_launch_hold.sql`、`sql/008_simulation_roster_guard.sql`。

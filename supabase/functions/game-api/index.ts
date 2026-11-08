@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
     const isGM = member.role === 'gm' && league.kind === 'gm';
     const allowedTeam = isGM ? teamIds.has(pickTeam) : pickTeam === member.team_id;
     const responseBase = { kind: league.kind, league_id: league.id, year: league.current_year, phase: league.season_phase,
-      season_anchor_at: league.season_anchor_at, is_ready: league.is_ready, role: member.role,
+      season_anchor_at: league.season_anchor_at, is_ready: league.is_ready, clock_enabled: league.clock_enabled, clock_last_tick: league.clock_last_tick, role: member.role,
       team_id: member.team_id, active_timeline_id: league.active_timeline_id };
 
     if (action === 'status') {
