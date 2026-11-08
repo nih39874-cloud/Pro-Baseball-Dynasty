@@ -73,3 +73,14 @@ node scripts/provision-users.mjs
   必須經過資料及帳號驗證且正式上線後才解鎖。
 - 排程工作：`diamond-league-minute` 觸發 `private.tick_all(now())`。
 - 遷移：`sql/007_gm_clock_and_official_launch_hold.sql`、`sql/008_simulation_roster_guard.sql`。
+
+## Rebas 2024 球員出賽資料匯入管線
+
+`python scripts/prepare_rebas_2024.py /path/to/CPBL-2024-OpenData.zip data/rebas_2024_appearance_index.json`
+會整理 2024 年**實際出賽**球員、Rebas 原始 ID、曾效力球隊及打擊／投球統計。來源：
+[野球革命 Open Data 2024](https://github.com/rebas-tw/rebas.tw-open-data/releases/tag/v0.1.0-2024)，ODC-By 授權，必須標示來源。
+
+請注意：這 **不是全季註冊名單**（未出賽球員缺漏）、不包含 2025／2026 選秀球員，
+也不包含球員個別肖像、薪資、FA 資格或完整守備位置。匯入正式聯盟之前必須補齊、去重及核對。
+GitHub Actions 工作流程 `.github/workflows/rebas-2024.yml` 會從原始 release 下載 ZIP，
+產生帶授權註記的資料索引，並提交回儲存庫。

@@ -1,0 +1,34 @@
+name: Build sourced 2024 CPBL appearance index
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/prepare_rebas_2024.py
+      - .github/workflows/rebas-2024.yml
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch attributed Rebas 2024 Open Data
+        run: |
+          curl -fL --retry 3 --connect-timeout 20 --max-time 150 \
+            'https://github.com/rebas-tw/rebas.tw-open-data/releases/download/v0.1.0-2024/CPBL-2024-OpenData.zip' \
+            -o /tmp/CPBL-2024-OpenData.zip
+      - name: Extract a source-traceable 2024 player index
+        run: python scripts/prepare_rebas_2024.py /tmp/CPBL-2024-OpenData.zip data/rebas_2024_appearance_index.json
+      - name: Commit generated open-data index (do not fabricate registrations)
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/rebas_2024_appearance_index.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Build attributed 2024 CPBL appearance index from Rebas Open Data'
+            git push origin HEAD:main
+          fi
