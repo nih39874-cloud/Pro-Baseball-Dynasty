@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
     const isGM = member.role === 'gm' && league.kind === 'gm';
     const allowedTeam = isGM ? teamIds.has(pickTeam) : pickTeam === member.team_id;
     const responseBase = { kind: league.kind, league_id: league.id, year: league.current_year, phase: league.season_phase,
-      season_anchor_at: league.season_anchor_at, is_ready: league.is_ready, clock_enabled: league.clock_enabled, clock_last_tick: league.clock_last_tick, role: member.role,
+      season_anchor_at: league.season_anchor_at, is_ready: league.is_ready, clock_enabled: league.clock_enabled, clock_last_tick: league.clock_last_tick, roster_source_status: league.roster_source_status, role: member.role,
       team_id: member.team_id, active_timeline_id: league.active_timeline_id };
 
     if (action === 'status') {
@@ -67,7 +67,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'roster') {
       need(allowedTeam, 'TEAM_NOT_ALLOWED');
       const [players,rosters,offers] = await Promise.all([
-        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,batting_rating,pitching_rating,fielding_rating,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence)')
+        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,batting_rating,pitching_rating,fielding_rating,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence)')
           .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(250),
         db.from('roster_submissions').select('kind,player_ids,locked,auto_selected,submitted_at')
           .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam),
