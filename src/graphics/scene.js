@@ -28,9 +28,9 @@ function buildStatic(){const b=new MeshBuffer();
  return b;
 }
 export class StadiumScene{
- constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl)throw Error('此瀏覽器不支援 WebGL2');this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.staticMesh=buildStatic();this.cameraYaw=0;}
- render(state,now){const gl=this.gl,canvas=this.canvas;const w=Math.min(2200,Math.max(1,canvas.clientWidth*devicePixelRatio)),h=Math.min(1300,Math.max(1,canvas.clientHeight*devicePixelRatio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h)}
- gl.clearColor(.055,.12,.16,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);const b=new MeshBuffer();b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();
+ constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.staticMesh=buildStatic();this.cameraYaw=0;}
+ render(state,now){const gl=this.gl,canvas=this.canvas;const w=Math.min(2200,Math.max(1,canvas.clientWidth*devicePixelRatio)),h=Math.min(1300,Math.max(1,canvas.clientHeight*devicePixelRatio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;if(gl)gl.viewport(0,0,w,h)}
+ if(gl){gl.clearColor(.055,.12,.16,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}const b=new MeshBuffer();b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();
  const defending=state.half==='top'?state.home:state.visitor;const dteam=TEAMS.find(t=>t.id===defending)||TEAMS[0];const ateam=TEAMS.find(t=>t.id!==(state.half==='top'?state.home:state.visitor)&&t.id===(state.half==='top'?state.visitor:state.home))||TEAMS[1];
  FIELDERS.forEach(f=>{const p=state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos;b.person(p[0],p[1],dteam.color)});
  b.person(1.1,-.9,ateam.color); // batter to side of plate
@@ -49,9 +49,26 @@ export class StadiumScene{
  else{const p=state.fielderPos||state.selectedFielder?.pos||[-8,-30];eye=[p[0],1.7,p[1]+1];target=[state.ball?.x||0,Math.max(.7,state.ball?.y||1),state.ball?.z||-35];}
  }
  const matrix=multiply(perspective(deg(role==='auto'?65:70),w/h,.08,440),lookAt(eye,target));
+ if(!gl){this.renderSoftware(b,matrix,w,h,now);return;}
  gl.useProgram(this.program);gl.uniformMatrix4fv(this.vp,false,matrix);
  const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(b.p),gl.DYNAMIC_DRAW);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aPos);
  const color=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,color);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(b.c),gl.DYNAMIC_DRAW);gl.vertexAttribPointer(this.aCol,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aCol);
  gl.drawArrays(gl.TRIANGLES,0,b.p.length/3);gl.deleteBuffer(buf);gl.deleteBuffer(color);
  }
+ renderSoftware(b,m,w,h,now){
+  if(this.lastSoftware&&now-this.lastSoftware<90)return;
+  this.lastSoftware=now;
+  const ctx=this.ctx;ctx.fillStyle='#102b37';ctx.fillRect(0,0,w,h);
+  const projected=[];const points=b.p,colors=b.c;
+  const proj=(j)=>{const x=points[j],y=points[j+1],z=points[j+2],v=m[3]*x+m[7]*y+m[11]*z+m[15];if(v<.08)return null;const px=(m[0]*x+m[4]*y+m[8]*z+m[12])/v,py=(m[1]*x+m[5]*y+m[9]*z+m[13])/v,d=(m[2]*x+m[6]*y+m[10]*z+m[14])/v;return [(px+1)*w/2,(1-py)*h/2,d]};
+  for(let i=0;i<points.length;i+=9){const a=proj(i),bb=proj(i+3),c=proj(i+6);if(!a||!bb||!c)continue;if(a[2]>1&&bb[2]>1&&c[2]>1)continue;
+   const cx=(a[0]+bb[0]+c[0])/3,cy=(a[1]+bb[1]+c[1])/3;
+   if(cx< -w*.45||cx>w*1.45||cy< -h*.45||cy>h*1.45)continue;
+   const area=Math.abs((bb[0]-a[0])*(c[1]-a[1])-(c[0]-a[0])*(bb[1]-a[1]));if(area<.5)continue;
+   const col=colors.slice(i,i+3).map(v=>Math.max(0,Math.min(255,Math.round(255*Math.pow(v,.91)))));
+   projected.push({a,b:bb,c,d:(a[2]+bb[2]+c[2])/3,col});}
+  projected.sort((a,b)=>b.d-a.d);
+  for(const t of projected){ctx.beginPath();ctx.moveTo(t.a[0],t.a[1]);ctx.lineTo(t.b[0],t.b[1]);ctx.lineTo(t.c[0],t.c[1]);ctx.closePath();ctx.fillStyle=`rgb(${t.col.join(',')})`;ctx.fill();}
+ }
+
 }
