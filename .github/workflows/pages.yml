@@ -1,4 +1,4 @@
-name: Publish static PWA
+name: Test and publish Diamond Dynasty PWA
 on:
   push:
     branches: [main]
@@ -18,9 +18,18 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test
       - uses: actions/configure-pages@v5
+      - name: Assemble static site (do not publish server scripts)
+        run: |
+          mkdir -p _site
+          cp index.html style.css manifest.webmanifest sw.js _site/
+          cp -R src assets _site/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -16,4 +16,4 @@ export const FIELDERS = [
   {key:'LF',label:'左外野手',pos:[-36,-66]}, {key:'CF',label:'中外野手',pos:[0,-79]}, {key:'RF',label:'右外野手',pos:[36,-66]}
 ];
 // Public frontend configuration only: no passwords, service keys or auth secrets.
-export const BACKEND = {url:'', publishableKey:''};
+export const BACKEND = {url:'https://imustiprnotlhryoappj.supabase.co', publishableKey:'sb_publishable_Zq0PhV9IIQV38FOZ5MTEzQ_nFjRmEoW'};
