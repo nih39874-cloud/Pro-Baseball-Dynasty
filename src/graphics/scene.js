@@ -68,7 +68,35 @@ export class StadiumScene{
    drawAvatar(b,[x+1.5,z+1.5],{id:runner?.id||`${ateam.id}:runner:${i}`,profile:runner?.profile,color:ateam.color,role:'runner',phase:state.phase,now,detail:0});
  }
  b.cylinder(.3,.15,0,.055,1.55,[.64,.47,.23],8);
- if(state.ball&&state.ball.visible!==false){const v=state.ball;b.sphere(v.x,v.y,v.z,.16,[.97,.97,.92],9);if(v.trail){for(let i=1;i<=12;i++){const k=i/13;b.sphere(v.x-v.vx*k*.18,Math.max(.14,v.y-v.vy*k*.18),v.z-v.vz*k*.18,.05,[.87,.70,.39],5);}}}
+ if(state.phase==='fielding'&&state.landing){
+  const land=state.landing;
+  // Concentric landing marker, tall beacon and ground shadow make the live ball trackable.
+  for(const radius of [1.0,2.0,3.1]){
+   const steps=28;
+   for(let i=0;i<steps;i++){
+    const t=i*2*Math.PI/steps,u=(i+1)*2*Math.PI/steps;
+    b.line([land.x+Math.cos(t)*radius,.11,land.z+Math.sin(t)*radius],
+           [land.x+Math.cos(u)*radius,.11,land.z+Math.sin(u)*radius],.12,[.98,.72,.14]);
+   }
+  }
+  b.cylinder(land.x,.06,land.z,.22,2.6,[.95,.63,.17],10);
+ }
+ if(state.ball&&state.ball.visible!==false){
+  const v=state.ball;
+  const highlighted=state.phase==='fielding';
+  b.sphere(v.x,v.y,v.z,highlighted?.34:.18,[1,.99,.93],12);
+  if(highlighted){
+   b.sphere(v.x,v.y,v.z,.43,[.94,.70,.24],8);
+   b.cylinder(v.x,.08,v.z,.42,.026,[.95,.88,.57],14);
+  }
+  if(v.trail){
+   for(let i=1;i<=12;i++){
+    const k=i/13,tail=.17;
+    b.sphere(v.x-(v.vx||0)*k*tail,Math.max(.14,v.y-(v.vy||0)*k*tail),v.z-(v.vz||0)*k*tail,
+      highlighted?.10:.05,[.95,.75,.32],6);
+   }
+  }
+ }
  if(state.mode==='coach'){b.cylinder(state.coachPos.x,0,state.coachPos.z,.25,.05,[.8,.6,.3]);}
  const role=currentRole(state);let eye,target;
  if(role==='coach'){eye=[state.coachPos.x,1.65,state.coachPos.z];target=[eye[0]+Math.sin(this.cameraYaw)*8,1.62,eye[2]-Math.cos(this.cameraYaw)*8];}
@@ -76,9 +104,16 @@ export class StadiumScene{
  else if(role==='batter'){eye=[0,1.55,4.3];target=[0,1.0,-20];}
  else if(role==='auto'){eye=[24,16,22];target=[0,0.5,-30];}
  else{eye=[-4,4,4];target=[0,0,-29];}
- if(state.phase==='fielding'&&role!=='coach'&&role!=='auto'){
- if(isOffense(state)){eye=[state.runnerPos?.x||0,1.6,state.runnerPos?.z||1];target=[0,1.3,-25];}
- else{const p=state.fielderPos||state.selectedFielder?.pos||[-8,-30];eye=[p[0],1.7,p[1]+1];target=[state.ball?.x||0,Math.max(.7,state.ball?.y||1),state.ball?.z||-35];}
+ if((state.phase==='fielding'||state.phase==='fielderChoice')&&role!=='coach'&&role!=='auto'){
+  if(isOffense(state)){
+   eye=[state.runnerPos?.x??12,7,state.runnerPos?.z??14];target=[state.ball?.x??0,Math.max(1,state.ball?.y??1),state.ball?.z??-35];
+  }else{
+   const p=state.fielderPos||state.selectedFielder?.pos||[0,-30];
+   const fx=p.x??p[0],fz=p.z??p[1],land=state.landing||{x:0,z:-35};
+   // Third-person chase camera: player, flying ball and landing zone remain in front.
+   const focusX=(fx+land.x)*.5,focusZ=(fz+land.z)*.5;
+   eye=[fx,9,fz+15];target=[focusX,Math.max(1.1,(state.ball?.y||0)*.55),focusZ];
+  }
  }
  const matrix=multiply(perspective(deg(role==='auto'?65:70),w/h,.08,440),lookAt(eye,target));
  if(!gl){this.renderSoftware(b,matrix,w,h,now);return;}
