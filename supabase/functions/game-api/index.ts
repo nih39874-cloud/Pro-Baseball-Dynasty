@@ -59,12 +59,13 @@ Deno.serve(async (req: Request) => {
           .eq('league_id', league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year)
           .eq('phase','final').order('scheduled_at',{ascending:false}).limit(12),
         db.from('league_champions').select('season_year,team_id').eq('league_id',league.id).order('season_year',{ascending:false}).limit(10),
-        db.from('league_players').select('roster_status').eq('league_id',league.id).eq('team_id',pickTeam)
+        db.from('league_players').select('roster_status,monthly_salary_ntd').eq('league_id',league.id).eq('team_id',pickTeam)
       ]);
       if (fin.error || games.error || recent.error || champs.error || clubPlayers.error) return fail(req, 'DATABASE_READ_FAILED', 503);
       return json(req, { ok: true, ...responseBase, finances: fin.data, upcoming: games.data,
         recent: recent.data, champions: champs.data,
-        roster_summary:{total:(clubPlayers.data||[]).length,active:(clubPlayers.data||[]).filter(p=>p.roster_status==='active').length,reserve:(clubPlayers.data||[]).filter(p=>p.roster_status==='reserve').length} });
+        roster_summary:{total:(clubPlayers.data||[]).length,active:(clubPlayers.data||[]).filter(p=>p.roster_status==='active').length,reserve:(clubPlayers.data||[]).filter(p=>p.roster_status==='reserve').length,
+          monthly_payroll_ntd:(clubPlayers.data||[]).filter(p=>p.roster_status==='active'||p.roster_status==='reserve').reduce((a,p)=>a+Number(p.monthly_salary_ntd||0),0)} });
     }
     if (action === 'gm-observe') {
       if (!isGM) return fail(req,'GM_ONLY',403);
