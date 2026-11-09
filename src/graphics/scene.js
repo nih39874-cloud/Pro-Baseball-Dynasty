@@ -23,12 +23,18 @@ void main(){
  float lambert=.43+.57*abs(dot(n,lightDir));
  float heightBounce=clamp(vWorld.y*.015,0.0,.12);
  vec3 material=pow(vColor,vec3(.96));
- vec3 shaded=material*(lambert+heightBounce)+vec3(.025,.028,.032);
+ float noise=fract(sin(dot(floor(vWorld.xz*5.0),vec2(12.9898,78.233)))*43758.5453);
+ float isGrass=step(vColor.r*1.7,vColor.g)*step(vColor.b*1.15,vColor.g)*step(vWorld.y,.11);
+ float isDirt=step(vColor.g*1.22,vColor.r)*step(vColor.b*1.65,vColor.r)*step(vWorld.y,.16);
+ material*=1.0+(noise-.5)*(.21*isGrass+.095*isDirt);
+ vec3 shaded=material*(lambert+heightBounce)+vec3(.035,.04,.042);
+ float fog=clamp((length(vWorld.xz)-115.0)/260.0,0.0,.22);
+ shaded=mix(shaded,vec3(.48,.64,.72),fog);
  fragColor=vec4(clamp(shaded,0.0,1.0),1.0);
 }
 `;
 function shader(gl,type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
-function buildStatic(){
+export function buildStatic(){
  const b=new MeshBuffer();
  const grass=[.083,.275,.143],grassLight=[.105,.325,.173],grassDark=[.072,.242,.127];
  const clay=[.43,.258,.147],track=[.33,.285,.245],concrete=[.32,.36,.39],steel=[.59,.66,.68];
@@ -187,7 +193,7 @@ export class StadiumScene{
     this.avatarTeams.set(team,{players,lineup,batters});}
   }).catch(()=>{/* Real roster assets are optional in the offline practice scene. */});}
  render(state,now){const gl=this.gl,canvas=this.canvas;const w=Math.min(2200,Math.max(1,canvas.clientWidth*devicePixelRatio)),h=Math.min(1300,Math.max(1,canvas.clientHeight*devicePixelRatio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;if(gl)gl.viewport(0,0,w,h)}
- if(gl){gl.clearColor(.055,.12,.16,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}const b=new MeshBuffer();if(!gl){b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();}
+ if(gl){gl.clearColor(.43,.63,.80,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}const b=new MeshBuffer();if(!gl){b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();}
  const defending=state.half==='top'?state.home:state.visitor;const dteam=TEAMS.find(t=>t.id===defending)||TEAMS[0];const ateam=TEAMS.find(t=>t.id!==(state.half==='top'?state.home:state.visitor)&&t.id===(state.half==='top'?state.visitor:state.home))||TEAMS[1];
  FIELDERS.forEach((f,i)=>{const pos=state.liveFielders?.[f.key]||(state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos);
    const person=this.avatarTeams.get(defending)?.lineup?.[i],key=person?.id||`${defending}:${f.key}`;
@@ -261,7 +267,7 @@ export class StadiumScene{
  renderSoftware(b,m,w,h,now){
   if(this.lastSoftware&&now-this.lastSoftware<90)return;
   this.lastSoftware=now;
-  const ctx=this.ctx;ctx.fillStyle='#102b37';ctx.fillRect(0,0,w,h);
+  const ctx=this.ctx;ctx.fillStyle='#709ebd';ctx.fillRect(0,0,w,h);
   const projected=[];const points=b.p,colors=b.c;
   const proj=(j)=>{const x=points[j],y=points[j+1],z=points[j+2],v=m[3]*x+m[7]*y+m[11]*z+m[15];if(v<.08)return null;const px=(m[0]*x+m[4]*y+m[8]*z+m[12])/v,py=(m[1]*x+m[5]*y+m[9]*z+m[13])/v,d=(m[2]*x+m[6]*y+m[10]*z+m[14])/v;return [(px+1)*w/2,(1-py)*h/2,d]};
   for(let i=0;i<points.length;i+=9){const a=proj(i),bb=proj(i+3),c=proj(i+6);if(!a||!bb||!c)continue;if(a[2]>1&&bb[2]>1&&c[2]>1)continue;
