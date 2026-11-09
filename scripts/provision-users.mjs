@@ -84,3 +84,36 @@ for(const [username] of entries){
  console.log(`${username}: login verified`);
 }
 console.log(`Successfully authenticated ${verified}/7 accounts.`);
+
+/**
+ * Non-mutating integration checks. Never log tokens or PINs.
+ */
+for(const [username] of entries){
+ const res=await fetch(url+'/auth/v1/token?grant_type=password',{
+   method:'POST',headers:{apikey:key,'Content-Type':'application/json'},
+   body:JSON.stringify({email:username.toLowerCase()+'@accounts.diamond-dynasty.invalid',password:authPassword(username,credentials[username])})
+ });
+ if(!res.ok)throw Error('LOGIN_SMOKE_FAILED: '+username);
+ const auth=await res.json();
+ const request=async action=>{
+   const x=await fetch(url+'/functions/v1/game-api',{
+     method:'POST',headers:{apikey:key,Authorization:'Bearer '+auth.access_token,'Content-Type':'application/json'},
+     body:JSON.stringify({action})
+   });
+   const body=await x.json().catch(()=>({}));
+   if(!x.ok||!body.ok)throw Error('GAME_API_SMOKE_FAILED: '+username+' '+action+' '+(body.error||x.status));
+   return body;
+ };
+ const status=await request('status');
+ const expectedKind=username==='GM'?'gm':'official';
+ if(status.kind!==expectedKind)throw Error('LEAGUE_ISOLATION_FAILED: '+username);
+ if(username==='GM'){
+   if(status.team_id!=='dragons')throw Error('GM_CLUB_NOT_MAPPED');
+   const overview=await request('gm-observe');
+   if(overview.teams?.length!==6)throw Error('OFFICIAL_OBSERVER_FAILED');
+   const market=await request('gm-market');
+   if(!Array.isArray(market.players)||market.players.length<1)throw Error('GM_MARKET_EMPTY');
+ }
+ console.log(username+': authenticated; game API '+expectedKind+' OK');
+}
+console.log('All seven login/API smoke tests passed.');
