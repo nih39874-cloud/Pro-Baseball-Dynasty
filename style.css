@@ -1,3 +1,4 @@
+@import url('./src/ui/coach-setup.css');
 :root{--navy:#071a25;--panel:rgba(8,24,34,.88);--line:rgba(198,217,228,.18);--gold:#ddb56b;--cyan:#67c4d9;--white:#f3f7f7;--muted:#9eb4bc;--danger:#ee7771;--safe:#8ad9b5;font-family:Inter,'Noto Sans TC',system-ui,-apple-system,'Microsoft JhengHei',sans-serif;color:var(--white);font-synthesis:none;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body,#app{height:100%;width:100%;margin:0;background:var(--navy);overflow:hidden;overscroll-behavior:none}

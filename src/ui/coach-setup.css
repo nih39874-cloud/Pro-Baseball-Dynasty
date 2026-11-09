@@ -1,0 +1,26 @@
+/* Coach opponent presets and 28-player first/farm management, optimized for landscape PWA. */
+.coach-setup{display:flex;flex-direction:column;gap:12px;padding-bottom:10px}
+.coach-headline{display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid #ffffff28;padding:8px 0}
+.coach-headline h3{margin:0;color:#e9cf95!important}
+.coach-headline span,.coach-headline small{color:#aec2c9;font-size:11px;text-align:right}
+.coach-tabs{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:-25px;z-index:2;padding:8px 0;background:#102e3b}
+.coach-opponent-tab{flex:1 1 115px;min-height:38px;padding:8px 12px;border:1px solid #58747d;border-radius:8px;background:#183643;color:#bfced4;font-size:12px;font-weight:700}
+.coach-opponent-tab.current{color:#202d32;border-color:#f4d19b;background:#d7b178}
+.coach-lineup-columns,.coach-roster-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.coach-panel{background:#17333f;border:1px solid #506e78;border-radius:10px;padding:9px 11px;min-width:0}
+.coach-panel h3{margin:1px 0 10px!important;color:#e7d4ac;font-size:14px!important}
+.coach-entry{display:flex;align-items:center;gap:6px;justify-content:space-between;margin:6px 0;font-size:11px;color:#bcd0d6;min-width:0}
+.coach-entry>span{min-width:48px;flex:none}
+.coach-entry select{min-width:0!important;width:100%;flex:1;padding:6px!important;font-size:11px!important;text-overflow:ellipsis}
+.coach-actions{margin:3px 0 9px}
+.coach-roster-list{max-height:min(42vh,320px);overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y}
+.coach-roster-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid #ffffff1f}
+.coach-roster-row>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.coach-roster-row strong{font-size:12px;color:#ebf3f2}
+.coach-roster-row small{font-size:10px;color:#abc0c7;line-height:1.4}
+.coach-roster-row .btn{flex:none;padding:6px 10px;font-size:10px}
+.coach-roster-row .btn:disabled{opacity:.42}
+.coach-cooldown{font-size:10px;color:#e4bf82}
+.coach-footnote{font-size:10px!important;color:#9eb3bd!important;margin:2px!important}
+@media(max-width:680px){.coach-tabs{top:-16px}.coach-opponent-tab{flex:1 1 75px;font-size:10px;padding:5px}.coach-panel{padding:7px}.coach-entry>span{min-width:38px}}
+@media(max-height:420px){.coach-roster-list{max-height:45vh}.coach-entry{margin:4px 0}.coach-headline{padding:4px 0}}
