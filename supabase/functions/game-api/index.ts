@@ -67,7 +67,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'roster') {
       need(allowedTeam, 'TEAM_NOT_ALLOWED');
       const [players,rosters,offers] = await Promise.all([
-        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,batting_rating,pitching_rating,fielding_rating,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence)')
+        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,fa_service_initial_estimate,fa_initial_eligible_reported,fa_2024_service_reported,fa_usage_min_seasons,fa_qualification_threshold,fa_qualify_note,batting_rating,pitching_rating,fielding_rating,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence,official_cpbl_id,bats,throws,birth_date)')
           .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(250),
         db.from('roster_submissions').select('kind,player_ids,locked,auto_selected,submitted_at')
           .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam),
@@ -75,7 +75,20 @@ Deno.serve(async (req: Request) => {
           .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('bidder_team_id',pickTeam).order('created_at',{ascending:false}).limit(30)
       ]);
       if (players.error || rosters.error || offers.error) return fail(req,'ROSTER_READ_FAILED',503);
-      return json(req,{ok:true,...responseBase,team_id:pickTeam,players:players.data,rosters:rosters.data,offers:offers.data});
+      const ids=(players.data||[]).map(p=>p.master_player_id);
+      let stats=[],visual=[];
+      if(ids.length){
+        const [st,vi]=await Promise.all([
+          db.from('cpbl_season_reference').select('master_player_id,league_level,team_id,batting,pitching').eq('season_year',2024).in('master_player_id',ids).limit(600),
+          db.from('player_visual_profiles').select('master_player_id,model_status').in('master_player_id',ids).limit(250)
+        ]);
+        if(st.error||vi.error)return fail(req,'PLAYER_SOURCE_READ_FAILED',503);
+        stats=st.data||[];visual=vi.data||[];
+      }
+      const byId=new Map(),byVisual=new Map(visual.map(x=>[x.master_player_id,x.model_status]));
+      for(const item of stats){const list=byId.get(item.master_player_id)||[];list.push(item);byId.set(item.master_player_id,list);}
+      const enriched=(players.data||[]).map(p=>({...p,reference_stats:byId.get(p.master_player_id)||[],visual_status:byVisual.get(p.master_player_id)||'missing'}));
+      return json(req,{ok:true,...responseBase,team_id:pickTeam,players:enriched,rosters:rosters.data,offers:offers.data});
     }
     if (action === 'free-agents') {
       const r=await db.from('league_players').select('master_player_id,roster_status,monthly_salary_ntd,players_master(full_name,primary_position,source_year)')
