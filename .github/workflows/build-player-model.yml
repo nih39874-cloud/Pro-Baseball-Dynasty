@@ -67,6 +67,7 @@ jobs:
           git config user.name 'github-actions[bot]'
           git add assets/models/player_base.glb assets/models/stadium_base.glb assets/previews/player-review.png assets/previews/stadium-review.png
           if ! git diff --cached --quiet; then
-            git commit -m "assets: export baseball player GLB with Blender"
+            git commit -m "assets: export Blender GLB models and QA renders"
+            git pull --rebase origin main
             git push
           fi
