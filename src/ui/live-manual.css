@@ -1,0 +1,27 @@
+/* Landscape, touch-safe analog aiming for manual CPBL ball/bat input. */
+.live-player-controls{margin-top:12px;padding:12px;background:rgba(6,25,35,.9);border:1px solid rgba(130,215,205,.45);border-radius:13px}
+.live-player-controls h3{margin:0 0 5px;color:#d4efde;font-size:16px}
+.live-pitch-count{font-weight:700;letter-spacing:.07em;margin:7px 0 12px;font-variant-numeric:tabular-nums}
+.live-pitch-count span{color:#e8bb77;font-size:12px}
+.live-pad-wrap{display:flex;gap:12px;align-items:center;justify-content:start}
+.live-pad-wrap small{max-width:180px;color:#b6cbd2;font-size:12px;line-height:1.6}
+.live-aim-pad{position:relative;flex:0 0 160px;width:160px;height:145px;background:radial-gradient(circle at 50% 30%,#1f4859,#091d27 78%);border:2px solid rgba(159,207,208,.55);border-radius:18px;touch-action:none;overscroll-behavior:none;user-select:none;-webkit-user-select:none;cursor:crosshair;overflow:hidden}
+.live-strike-outline{position:absolute;inset:18% 19%;border:2px dashed rgba(220,237,230,.6);border-radius:2px;pointer-events:none}
+.live-aim-center{position:absolute;width:22px;height:22px;border:2px solid #8ef1ba;box-shadow:0 0 12px #80f7b688;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+.live-aim-center::before,.live-aim-center::after{content:"";position:absolute;background:#8ef1ba;left:50%;top:50%;transform:translate(-50%,-50%)}
+.live-aim-center::before{width:11px;height:1px}.live-aim-center::after{height:11px;width:1px}
+.live-virtual-bat{position:absolute;transform:translate(-50%,-50%) rotate(-32deg);width:78px;height:6px;border-top:3px dashed #edce82;filter:drop-shadow(0 0 5px #eac566);pointer-events:none}
+.live-pitch-dot{position:absolute;transform:translate(-50%,-50%);width:15px;height:15px;border-radius:100%;background:#f6f7ec;box-shadow:0 0 5px #efde93,0 0 13px #ffffff88;pointer-events:none;animation:livePitchPop .45s ease-out}
+@keyframes livePitchPop{from{scale:1.8;opacity:.35}to{scale:1;opacity:1}}
+.live-meter-wrap{display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+.live-meter-track{width:176px;height:18px;border:1px solid #779eaa;background:#173341;border-radius:12px;position:relative;overflow:hidden}
+.live-meter-safe{height:100%;width:20%;margin-left:40%;background:rgba(125,229,167,.48)}
+.live-meter-needle{position:absolute;top:-2px;bottom:-2px;width:4px;border-radius:3px;background:#fbdf8a;left:48%}
+.live-meter-track.running .live-meter-needle{animation:liveMeterRun 1.05s linear infinite alternate}
+@keyframes liveMeterRun{from{left:0}to{left:calc(100% - 4px)}}
+.live-abs-result{margin-top:12px;padding:10px;border:1px solid #90b6d5;border-radius:12px;display:flex;flex-direction:column;align-items:center;gap:5px;background:linear-gradient(130deg,#122d42,#1b3345)}
+.live-abs-result strong{color:#eee5ac}.live-abs-result small{font-size:11px;color:#bbd7e1}
+.live-abs-zone{position:relative;width:96px;height:102px;margin:6px auto;border:2px solid #a9dad6;box-shadow:0 0 12px #75bfa3aa;animation:liveAbsReveal .8s ease-out}
+.live-abs-dot{position:absolute;width:12px;height:12px;border-radius:50%;background:#ffedcd;border:2px solid #e6b76d;transform:translate(-50%,-50%);box-shadow:0 0 7px #fff}
+@keyframes liveAbsReveal{from{opacity:0;transform:perspective(220px) rotateX(35deg) scale(.7)}to{opacity:1;transform:perspective(220px) rotateX(0) scale(1)}}
+@media (max-height:550px){.live-aim-pad{height:116px;width:132px;flex-basis:132px}.live-player-controls{padding:8px}.live-abs-zone{height:76px}}

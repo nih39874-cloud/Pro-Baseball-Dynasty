@@ -7,6 +7,8 @@ const db = createClient(url, secret, {auth:{persistSession:false,autoRefreshToke
 const ALLOWED = new Set(['https://nih39874-cloud.github.io','http://localhost:4173','http://127.0.0.1:4173']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const commandTypes=new Set(['change_pitcher','pinch_hitter','bunt','steal','infield_in','intentional_walk','normal']);
+const pitchTypes=new Set(['four_seam','two_seam','slider','curve','changeup','splitter','cutter','sinker']);
+const normalized=(v:unknown)=>typeof v==='number'&&Number.isFinite(v)&&v>=-1.25&&v<=1.25;
 function headers(req:Request){const origin=req.headers.get('origin')||'';return {'Access-Control-Allow-Origin':ALLOWED.has(origin)?origin:'https://nih39874-cloud.github.io','Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin','Content-Type':'application/json; charset=utf-8'};}
 function reply(req:Request,data:unknown,status=200){return new Response(JSON.stringify(data),{status,headers:headers(req)})}
 function fail(req:Request,error:string,status=400){return reply(req,{ok:false,error},status)}
@@ -48,13 +50,20 @@ Deno.serve(async(req:Request)=>{
   const participates=game.home_team_id===member.team_id||game.away_team_id===member.team_id;
   if(!isGM&&!participates)return fail(req,'GAME_NOT_ALLOWED',403);
   if(action==='status'){
-    const [sess,control,events]=await Promise.all([
+    const [sess,control,events,pitch]=await Promise.all([
       db.from('match_sessions').select('state,version,updated_at,completed_at').eq('game_id',gameId).maybeSingle(),
-      db.from('match_team_controls').select('team_id,active_mode,pending_mode,last_heartbeat_at').eq('game_id',gameId),
-      db.from('game_events').select('seq,type,payload,created_at').eq('game_id',gameId).order('seq',{ascending:false}).limit(35)
+      db.from('match_team_controls').select('team_id,active_mode,pending_mode,last_heartbeat_at,abs_remaining').eq('game_id',gameId),
+      db.from('game_events').select('seq,type,payload,created_at').eq('game_id',gameId).order('seq',{ascending:false}).limit(35),
+      db.from('match_pitch_states').select('balls,strikes,pitch_no,pending_pitch,review,last_outcome,updated_at').eq('game_id',gameId).maybeSingle()
     ]);
-    if(sess.error||control.error||events.error)return fail(req,'MATCH_READ_FAILED',503);
-    return reply(req,{ok:true,game,session:sess.data,controls:control.data||[],events:(events.data||[]).reverse(),clock_enabled:league.clock_enabled});
+    if(sess.error||control.error||events.error||pitch.error)return fail(req,'MATCH_READ_FAILED',503);
+    const ps=pitch.data;
+    const publicPitch=ps?.pending_pitch?{id:ps.pending_pitch.id,x:ps.pending_pitch.x,y:ps.pending_pitch.y,
+      pitch_type:ps.pending_pitch.pitch_type,released_at:ps.pending_pitch.released_at}:null;
+    const review=ps?.review?{pitch_id:ps.review.pitch_id,until:ps.review.until,called_strike:ps.review.called_strike}:null;
+    return reply(req,{ok:true,game,session:sess.data,controls:control.data||[],events:(events.data||[]).reverse(),
+      pitch_state:ps?{balls:ps.balls,strikes:ps.strikes,pitch_no:ps.pitch_no,pending_pitch:publicPitch,review,
+        last_outcome:ps.last_outcome,updated_at:ps.updated_at}:null,clock_enabled:league.clock_enabled});
   }
   const teamId=isGM?String(body.team_id||''):member.team_id;
   if(!teamId||![game.home_team_id,game.away_team_id].includes(teamId))return fail(req,'CONTROL_TEAM_NOT_PARTICIPANT',403);
@@ -65,8 +74,26 @@ Deno.serve(async(req:Request)=>{
     response=await db.rpc('server_live_start',{p_game:gameId});
   }else if(action==='mode'){
     const mode=String(body.mode||'');
-    assert(['auto','coach'].includes(mode),'MODE_NOT_AVAILABLE');
+    assert(['auto','coach','player'].includes(mode),'MODE_NOT_AVAILABLE');
     response=await db.rpc('server_live_control',{p_game:gameId,p_team:teamId,p_mode:mode,p_actor:actor});
+  }else if(action==='tick'){
+    if(game.phase!=='live')return fail(req,'MATCH_NOT_RUNNING',409);
+    response=await db.rpc('server_manual_tick',{p_game:gameId});
+  }else if(action==='pitch'){
+    const x=body.x,y=body.y,quality=body.quality;
+    const kind=String(body.pitch_type||'four_seam'),cmd=String(body.command_id||'');
+    assert(normalized(x)&&normalized(y)&&typeof quality==='number'&&quality>=0&&quality<=1&&pitchTypes.has(kind)&&UUID.test(cmd),'INVALID_PITCH_INPUT');
+    response=await db.rpc('server_manual_pitch',{p_game:gameId,p_team:teamId,p_x:x,p_y:y,p_quality:quality,
+      p_pitch_type:kind,p_command:cmd,p_actor:actor});
+  }else if(action==='bat'){
+    const x=body.x,y=body.y,timing=body.timing,kind=String(body.kind||''),cmd=String(body.command_id||'');
+    assert(normalized(x)&&normalized(y)&&typeof timing==='number'&&Number.isFinite(timing)&&timing>=-1&&timing<=1
+      &&['swing','take'].includes(kind)&&UUID.test(cmd),'INVALID_BAT_INPUT');
+    response=await db.rpc('server_manual_bat',{p_game:gameId,p_team:teamId,p_action:kind,p_x:x,p_y:y,
+      p_timing:timing,p_command:cmd,p_actor:actor});
+  }else if(action==='abs'){
+    const cmd=String(body.command_id||'');assert(UUID.test(cmd),'INVALID_COMMAND_ID');
+    response=await db.rpc('server_manual_abs',{p_game:gameId,p_team:teamId,p_command:cmd,p_actor:actor});
   }else if(action==='heartbeat'){
     response=await db.rpc('server_live_heartbeat',{p_game:gameId,p_team:teamId,p_actor:actor});
   }else if(action==='command'){
