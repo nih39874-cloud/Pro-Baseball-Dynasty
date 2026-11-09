@@ -53,3 +53,26 @@ for(const [username,team,role,kind] of entries){
  console.log(`${username}: verified`);
 }
 console.log('Verified all seven account memberships. Passwords were not printed or overwritten.');
+
+/**
+ * Verify every stored PIN against the real Supabase Auth endpoint.
+ * Never log credential values or access tokens.
+ */
+let verified=0;
+for(const [username] of entries){
+ const email=`${username.toLowerCase()}@accounts.diamond-dynasty.invalid`;
+ const testPassword=authPassword(username,credentials[username]);
+ const res=await fetch(`${url}/auth/v1/token?grant_type=password`,{
+  method:'POST',
+  headers:{apikey:key,'Content-Type':'application/json'},
+  body:JSON.stringify({email,password:testPassword})
+ });
+ if(!res.ok){
+  const err=await res.json().catch(()=>({}));
+  const code=String(err.error_code||err.code||res.status).replace(/[^a-zA-Z0-9_]/g,'');
+  throw Error(`Authentication check failed for ${username} (code: ${code}). Check whether Auth password differs from the saved secret.`);
+ }
+ verified++;
+ console.log(`${username}: login verified`);
+}
+console.log(`Successfully authenticated ${verified}/7 accounts.`);
