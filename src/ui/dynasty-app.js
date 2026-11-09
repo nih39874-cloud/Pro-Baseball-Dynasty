@@ -35,7 +35,7 @@ function roster(){
  if(!d)return `<section class="card">正在讀取球員名單…</section>`;
  const ps=d.players||[],active=ps.filter(x=>x.roster_status==='active');
  return `<section class="card"><h3>球隊名單</h3><div class="stats-grid"><div><small>一軍</small><h2>${active.length}/28</h2></div><div><small>本隊球員</small><h2>${ps.length}</h2></div></div><p class="muted">季後賽 32 人／季末保留 60 人，未簽約球員永久保留在資料庫。</p></section>
- <section class="card"><h3>球員資料</h3>${ps.map(p=>`<div class="player"><div><b>${esc(p.players_master?.full_name||p.master_player_id)}</b><small>${esc(p.players_master?.primary_position||'未分類')} · ${p.roster_status==='active'?'一軍':'二軍／預備'}</small></div><span class="skill">${esc(p.batting_rating??'-')} / ${esc(p.pitching_rating??'-')}</span></div>`).join('')||warning('此球隊尚無球員資料。')}</section>`;
+ <section class="card"><h3>球員資料</h3>${ps.map(p=>`<div class="player"><div><b>${esc(p.players_master?.full_name||p.master_player_id)}</b><small>${esc(p.players_master?.primary_position||'未分類')} · ${p.roster_status==='active'?'一軍':'二軍／預備'}</small></div><span class="skill">球探報告待校準</span></div>`).join('')||warning('此球隊尚無球員資料。')}</section>`;
 }
 function coach(){
  const d=state.coach;if(!d)return `<section class="card">正在讀取打線…</section>`;
