@@ -24,3 +24,12 @@ body{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}button
 @media(max-width:700px){.brand{min-width:auto}.brand small{display:none}.scoreboard{gap:7px}.teamscore{font-size:11px}.mode-label{display:none}.mode-bar button{padding:6px}.topbar{gap:5px}.side-info{max-width:145px}.intro{display:block}.intro-feature{margin-top:12px}.team-grid{grid-template-columns:repeat(2,1fr)}.panel-grid{grid-template-columns:repeat(2,1fr)}}
 
 .modal input[type="checkbox"]{min-width:0;width:17px;height:17px;accent-color:#d2ab6a;flex-shrink:0}
+
+/* Individually attributed player records. Scroll only inside this panel on phones. */
+.roster-detail{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.12);font-size:13px;cursor:pointer}
+.roster-detail>input{flex:none;width:18px;height:18px;accent-color:#ddb56b}
+.roster-player-body{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1;line-height:1.35}
+.roster-player-body strong{font-size:14px}
+.roster-player-body strong small{font-size:11px;color:#b1c9cd;font-weight:normal;margin-left:4px}
+.roster-player-body>span{color:#b1c9cd;white-space:normal;overflow-wrap:anywhere}
+.roster-player-body>span:nth-child(3){color:#eed19f}

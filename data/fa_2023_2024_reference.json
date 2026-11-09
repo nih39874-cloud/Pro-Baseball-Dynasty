@@ -1,0 +1,306 @@
+{
+  "source_2024": "https://gobaseball.gogoal.com.tw/archives/13525",
+  "source_2023": "https://tsna.com/article/80231",
+  "date_2024": "2024-10-30",
+  "date_2023": "2023-11-13",
+  "notation": "x.yyy means x whole qualified seasons + yyy registered days, NOT mathematical decimal years",
+  "service_2024": [
+    {
+      "name": "陳子豪",
+      "service_seasons": 11.004,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "黃鈞聲",
+      "service_seasons": 10.03,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "高國慶",
+      "service_seasons": 19.002,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "潘威倫",
+      "service_seasons": 16.038,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "王鏡銘",
+      "service_seasons": 13.043,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "江承峰",
+      "service_seasons": 10.091,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "胡金龍",
+      "service_seasons": 10.067,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "唐肇廷",
+      "service_seasons": 9.109,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "陳韻文",
+      "service_seasons": 9.033,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "陳鏞基",
+      "service_seasons": 4.0,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": true,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "林泓育",
+      "service_seasons": 14.105,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "林智平",
+      "service_seasons": 13.124,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "余德龍",
+      "service_seasons": 12.083,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "黃偉晟",
+      "service_seasons": 10.03,
+      "qualification": "nine_or_repeat",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "梁家榮",
+      "service_seasons": 9.108,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "林承飛",
+      "service_seasons": 9.011,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "朱育賢",
+      "service_seasons": 9.0,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "郭嚴文",
+      "service_seasons": 13.075,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "林智勝",
+      "service_seasons": 8.0,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": true,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "王勝偉",
+      "service_seasons": 6.034,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": true,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "郭永維",
+      "service_seasons": 11.089,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "王溢正",
+      "service_seasons": 9.107,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": true
+    },
+    {
+      "name": "賴鴻誠",
+      "service_seasons": 4.0,
+      "qualification": "nine_or_repeat",
+      "grade": "A",
+      "requalified_after_exercise": true,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "謝榮豪",
+      "service_seasons": 8.092,
+      "qualification": "eight_conditional",
+      "grade": "B",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "許基宏",
+      "service_seasons": 8.051,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "詹子賢",
+      "service_seasons": 8.039,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "林岱安",
+      "service_seasons": 8.1,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "林哲瑄",
+      "service_seasons": 8.113,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "高國麟",
+      "service_seasons": 8.109,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "李宗賢",
+      "service_seasons": 8.037,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "藍寅倫",
+      "service_seasons": 8.078,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "王躍霖",
+      "service_seasons": 8.069,
+      "qualification": "eight_conditional",
+      "grade": "A",
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "陳家駒",
+      "service_seasons": 7.12,
+      "qualification": "near_15_days",
+      "grade": null,
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    },
+    {
+      "name": "邱浩鈞",
+      "service_seasons": 7.124,
+      "qualification": "near_15_days",
+      "grade": null,
+      "requalified_after_exercise": false,
+      "eligible_by_2023": false
+    }
+  ],
+  "qualified_2023": [
+    "林泓育",
+    "林智平",
+    "郭嚴文",
+    "余德龍",
+    "郭永維",
+    "陳俊秀",
+    "黃偉晟",
+    "朱育賢",
+    "高國慶",
+    "潘威倫",
+    "王鏡銘",
+    "江承峰",
+    "唐肇廷",
+    "胡金龍",
+    "陳子豪",
+    "鄭凱文",
+    "黃鈞聲",
+    "王勝偉",
+    "高國輝",
+    "葉竹軒",
+    "劉時豪",
+    "林智勝",
+    "王溢正"
+  ]
+}
