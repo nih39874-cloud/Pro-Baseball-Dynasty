@@ -30,8 +30,8 @@ const navItems=[['home','首頁','⌂'],['roster','球員','▤'],['coach','戰�
 function bottom(){return '<nav class="bottom">'+navItems.map(([id,name,icon])=>'<button data-page="'+id+'" class="'+(state.page===id?'on':'')+'"><b>'+icon+'</b><span>'+name+'</span></button>').join('')+'</nav>'}
 function home(){
  const s=state.session||{},f=s.finances?.find(x=>x.team_id===ownTeam());
- const games=s.upcoming||[],recent=s.recent||[],match=games.find(g=>g.phase!=='final');
- const team=ownTeam(),opponent=match?(match.home_team_id===team?match.away_team_id:match.home_team_id):null;
+ const team=ownTeam(),games=s.upcoming||[],recent=s.recent||[],match=games.find(g=>g.phase!=='final'&&(g.home_team_id===team||g.away_team_id===team));
+ const opponent=match?(match.home_team_id===team?match.away_team_id:match.home_team_id):null;
  const roster=s.roster_summary||{},code=gm()?'GM':teamMap[team]?.short?.slice(0,2)||'隊';
  const cash=f?cashShort(f.cash_ntd):'—',started=recent.length>0;
  const stateText=gm()?'獨立沙盒':s.season_phase==='pending'&&!started?'開季準備':s.clock_enabled?'球季進行中':'聯盟待啟用';
