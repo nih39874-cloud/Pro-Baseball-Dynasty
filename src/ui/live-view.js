@@ -24,12 +24,10 @@ export function renderAbsAnimation(outcome){
 /** Pure view state -- the authoritative coordinates are still validated on the server. */
 export function renderAimPad({x=0,y=0,pendingPitch=null,batting=false}={}){
  const left=Math.min(100,Math.max(0,50+Number(x)*38)),top=Math.min(100,Math.max(0,50-Number(y)*38));
- const px=pendingPitch?Math.min(100,Math.max(0,50+Number(pendingPitch.x)*38)):0;
- const py=pendingPitch?Math.min(100,Math.max(0,50-Number(pendingPitch.y)*38)):0;
  return `<div class="live-pad-wrap"><div class="live-aim-pad" data-live-pad role="group" aria-label="左手自由瞄準；拖曳改變${batting?'球棒':'投球'}位置">
   <div class="live-strike-outline"></div><span class="live-aim-center" style="left:${left}%;top:${top}%"></span>
   ${batting?`<span class="live-virtual-bat" style="left:${left}%;top:${top}%"></span>`:''}
-  ${pendingPitch?`<span class="live-pitch-dot" style="left:${px}%;top:${py}%"></span>`:''}
+  ${pendingPitch?`<span class="live-release-indicator" aria-label="投球已出手，落點尚未揭示">球已出手</span>`:''}
  </div><small>左手拖曳瞄準・${batting?'虛線代表預計球棒通過位置':'越靠近邊角越難完美出手'}</small></div>`;
 }
 const PITCH_TYPES=[['four_seam','四縫線'],['two_seam','二縫線'],['slider','滑球'],['curve','曲球'],['changeup','變速'],['splitter','指叉'],['cutter','卡特'],['sinker','伸卡']];

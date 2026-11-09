@@ -28,3 +28,8 @@ test('aim pad is one continuous region not a nine-box selector',()=>{
  assert.equal((html.match(/data-live-pad/g)||[]).length,1);
  assert.doesNotMatch(html,/九宮格|data-cell/);
 });
+test('unresolved live pitch must never draw an exact landing location before batter commits',()=>{
+ const html=renderAimPad({pendingPitch:{id:'hidden-pitch-id',pitch_type:'slider',released_at:'2026-11-09T00:00:00Z'},batting:true});
+ assert.match(html,/球已出手/);
+ assert.doesNotMatch(html,/left:NaN|top:NaN|live-pitch-dot/);
+});
