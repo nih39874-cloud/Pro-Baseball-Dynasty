@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
       team_id: isGM ? 'dragons' : member.team_id, sandbox: isGM, active_timeline_id: league.active_timeline_id };
 
     if (action === 'status') {
-      const [fin, games, recent, champs, clubPlayers] = await Promise.all([
+      const [fin, games, recent, champs, clubPlayers, financialEvents, wageCharge] = await Promise.all([
         db.from('team_finances').select('team_id,cash_ntd,debt_ntd').eq('league_id', league.id).order('team_id'),
         db.from('games').select('id,season_year,home_team_id,away_team_id,scheduled_at,phase,home_score,away_score,season_stage,version')
           .eq('league_id', league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year)
@@ -59,11 +59,16 @@ Deno.serve(async (req: Request) => {
           .eq('league_id', league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year)
           .eq('phase','final').order('scheduled_at',{ascending:false}).limit(12),
         db.from('league_champions').select('season_year,team_id').eq('league_id',league.id).order('season_year',{ascending:false}).limit(10),
-        db.from('league_players').select('roster_status,monthly_salary_ntd').eq('league_id',league.id).eq('team_id',pickTeam)
+        db.from('league_players').select('roster_status,monthly_salary_ntd').eq('league_id',league.id).eq('team_id',pickTeam),
+        db.from('finance_ledger').select('id,kind,amount_ntd,memo,created_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).order('created_at',{ascending:false}).limit(250),
+        db.from('season_salary_charges').select('payroll_due_ntd,amount_paid_ntd,unpaid_ntd,charged_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).maybeSingle()
       ]);
-      if (fin.error || games.error || recent.error || champs.error || clubPlayers.error) return fail(req, 'DATABASE_READ_FAILED', 503);
+      if (fin.error || games.error || recent.error || champs.error || clubPlayers.error || financialEvents.error || wageCharge.error) return fail(req, 'DATABASE_READ_FAILED', 503);
       return json(req, { ok: true, ...responseBase, finances: fin.data, upcoming: games.data,
         recent: recent.data, champions: champs.data,
+        salary_charge:wageCharge.data,
+        finance_entries:(financialEvents.data||[]).slice(0,15),
+        season_game_income_ntd:(financialEvents.data||[]).filter(x=>x.kind==='home_game_net'||x.kind==='away_game_media').reduce((a,x)=>a+Number(x.amount_ntd||0),0),
         roster_summary:{total:(clubPlayers.data||[]).length,active:(clubPlayers.data||[]).filter(p=>p.roster_status==='active').length,reserve:(clubPlayers.data||[]).filter(p=>p.roster_status==='reserve').length,
           monthly_payroll_ntd:(clubPlayers.data||[]).filter(p=>p.roster_status==='active'||p.roster_status==='reserve').reduce((a,p)=>a+Number(p.monthly_salary_ntd||0),0)} });
     }
