@@ -123,3 +123,34 @@ select,input{border:1px solid var(--border);padding:11px;border-radius:8px;backg
 .secondary-action{background:#fff;border:1px solid var(--border);color:#537080}
 .primary-action{background:#245b80;border:1px solid #245b80;color:#fff}
 .primary-action:disabled{background:#b9c5cf;border-color:#b9c5cf}
+
+/* Full-viewport tactics editor. The entire nine-man lineup uses the page body, not a nested 30vh card. */
+.editor-shell{display:flex;flex:1;min-height:0;flex-direction:column;gap:7px;overflow:hidden}
+.editor-head{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;color:#60788d}
+.editor-back{border:0;background:#e5eef4;color:#245976;border-radius:7px;padding:8px;font-weight:700;font-size:12px}
+.editor-opponent{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.editor-tabs{flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.editor-tabs button{border:1px solid #dae4eb;background:#fff;border-radius:8px;padding:9px;color:#536a7b;font-size:12px;font-weight:700}
+.editor-tabs button.selected{background:#245b80;color:#fff;border-color:#245b80}
+.editor-rows{min-height:0;flex:1;display:grid;grid-template-rows:repeat(9,minmax(0,1fr));gap:4px}
+.lineup-edit-row{min-height:0;display:flex;align-items:center;gap:6px;padding:2px 8px;background:#fff;border:1px solid #dce5eb;border-radius:8px}
+.bat-num{width:29px;height:28px;display:grid;place-items:center;background:#eaf1f6;border-radius:6px;color:#285c80;font-weight:800;font-size:13px;flex:none}
+.def-pos{width:41px;font-size:12px;font-weight:800;color:#286185}
+.lineup-person{flex:1;min-width:0;text-align:left;background:transparent;border:0;padding:4px 2px;color:#19354a}
+.lineup-person b{font-size:13px;display:block;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.lineup-person small{font-size:10px;color:#7c91a1;display:block;margin-top:2px;white-space:nowrap}
+.reorder{display:flex;flex-direction:column;gap:2px}
+.reorder button{height:22px;width:31px;border:1px solid #d9e5ed;border-radius:6px;background:#f2f6f9;color:#245b80;font-size:14px;line-height:1}
+.reorder button:disabled{opacity:.25}
+.lineup-arrow{color:#879aab}
+.editor-actions{flex-shrink:0;display:grid;grid-template-columns:1fr 1.4fr;gap:8px}
+.editor-actions button{padding:10px;border-radius:9px;font-size:12px;font-weight:800}
+.editor-hint{flex-shrink:0;color:#8496a5;font-size:10px;line-height:1.4;text-align:center}
+.picker-dialog{max-height:85dvh}
+.picker-headers{display:flex;justify-content:space-between;color:#7790a0;font-size:10px;border-bottom:1px solid #e1e8ef;padding:7px 0}
+.picker-list{overflow-y:auto;min-height:0;flex:1}
+.picker-list button{width:100%;display:flex;justify-content:space-between;align-items:center;background:#fff;border:0;border-bottom:1px solid #e4ebf0;padding:10px 4px;text-align:left;gap:10px;color:#19354a}
+.picker-list b{display:block;font-size:13px}
+.picker-list small{display:block;font-size:10px;color:#7d91a0;padding-top:3px}
+.picker-stats{font-size:11px;color:#53758b;white-space:nowrap}
+@media(max-height:690px){.editor-shell{gap:4px}.editor-tabs button{padding:6px}.lineup-edit-row{padding:1px 6px}.bat-num{height:23px}.lineup-person b{font-size:12px}.lineup-person small{font-size:9px}.reorder button{height:18px}.editor-actions button{padding:7px}.editor-hint{font-size:9px}}
