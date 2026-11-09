@@ -199,8 +199,10 @@ function awards(){
 }
 
 function club(){
- const history=(state.session?.champions||[]).map(x=>'<div class="lineup-row"><span>'+escape(x.season_year)+' 年</span><b>'+escape(tname(x.team_id))+'</b></div>').join('');
- return box('球團資訊','<div class="financial-row"><span>所屬球隊</span><b>'+escape(gm()?'GM 平行球團':tname(ownTeam()))+'</b></div><div class="financial-row"><span>遊戲球季</span><b>'+escape(state.session?.year)+'</b></div><div class="financial-row"><span>管理模式</span><b>'+(gm()?'獨立模擬':'六隊真人')+'</b></div>');
+ const champions=(state.session?.champions||[]).map(x=>'<div class="lineup-row"><span>'+escape(x.season_year)+' 年總冠軍</span><b>'+escape(tname(x.team_id))+'</b></div>').join('');
+ return box('球團資訊','<div class="financial-row"><span>所屬球隊</span><b>'+escape(gm()?'GM 平行球團':tname(ownTeam()))+'</b></div><div class="financial-row"><span>遊戲球季</span><b>'+escape(state.session?.year)+'</b></div><div class="financial-row"><span>管理模式</span><b>'+(gm()?'獨立模擬':'六隊真人')+'</b></div>')+
+ box('王朝歷史',champions||'<p class="quiet">首季總冠軍尚未產生。</p>')+
+ '<button class="gm-observe-link" data-page="awards">歷年個人獎項 ›</button>';
 }
 function lab(){
  if(!gm())return empty('此功能僅供 GM 平行球團操作');
