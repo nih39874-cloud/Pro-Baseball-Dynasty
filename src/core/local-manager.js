@@ -74,6 +74,19 @@ export class LocalManager {
   t.lineups[opponentId]={batting:order,defense:defensive,needsReview:false,updatedAt:Date.now()};
   this.save();return t.lineups[opponentId];
  }
+ investTraining(teamId,kind,amount,practice,now=Date.now()){
+  if(!['batting','pitching','fielding'].includes(kind))throw Error('無效的訓練項目');
+  if(!Number.isSafeInteger(amount)||amount<100000||amount>10000000)throw Error('單次訓練預算需介於 10 萬至 1,000 萬');
+  const funds=Number(practice?.funds?.[teamId]);
+  if(!Number.isFinite(funds)||funds<amount)throw Error('球隊資金不足');
+  const t=this.team(teamId);
+  if(!Array.isArray(t.training))t.training=[];
+  practice.funds[teamId]=funds-amount;
+  t.training.unshift({kind,amount,at:now});
+  t.training=t.training.slice(0,100);
+  this.save();
+  return {balance:practice.funds[teamId],record:t.training[0]};
+ }
  summary(teamId){
   const members=this.members(teamId),active=this.active(teamId);
   return {members:members.length,active:active.length,reserve:members.length-active.length,opponents:Object.keys(this.team(teamId).lineups).length};
