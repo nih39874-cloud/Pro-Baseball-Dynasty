@@ -38,13 +38,27 @@ function home(){
 function roster(){
  if(!state.roster)return empty('球員資料讀取中');
  const all=state.roster.players||[];
- const selected=all.filter(p=>state.filter==='all'||(state.filter==='active'?p.roster_status==='active':p.roster_status!=='active'));
+ const currentActive=all.filter(p=>p.roster_status==='active').length;
+ const selected=all.filter(p=>state.filter==='all'||(state.filter==='active'?p.roster_status==='active':p.roster_status==='reserve'));
  const list=selected.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
  const tabs=[['all','全部'],['active','一軍'],['reserve','二軍']];
- return '<div class="compact-summary"><div><small>全部球員</small><b>'+all.length+'</b></div><div><small>一軍名單</small><b>'+all.filter(p=>p.roster_status==='active').length+'/28</b></div><div><small>季末上限</small><b>60</b></div></div>'+
+ const line=p=>{
+  const active=p.roster_status==='active',reserve=p.roster_status==='reserve';
+  const changedAt=p.roster_changed_at?new Date(p.roster_changed_at).getTime():0;
+  const availableAt=Math.max(changedAt?changedAt+14400000:0,p.promotion_available_at?new Date(p.promotion_available_at).getTime():0);
+  const cooldown=(active||reserve)&&availableAt>Date.now();
+  const full=reserve&&currentActive>=28;
+  const blocked=cooldown||full;
+  const action=active?'下二軍':reserve?'升一軍':null;
+  const label=cooldown?'冷卻至 '+new Date(availableAt).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}):full?'一軍已滿':action;
+  return '<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(active?'一軍':reserve?'二軍／預備':'其他狀態')+'</small></button>'+
+  (action?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
+ };
+ return '<div class="compact-summary"><div><small>全部球員</small><b>'+all.length+'</b></div><div><small>一軍名單</small><b>'+currentActive+'/28</b></div><div><small>季末上限</small><b>60</b></div></div>'+
  '<div class="switch-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+'</button>').join('')+'</div>'+
  '<div class="inline-search"><input id="filter-players" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
- '<div class="list-scroller">'+list.map(p=>'<button class="list-row" data-player="'+p.master_player_id+'"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(p.roster_status==='active'?'一軍':'二軍／預備')+'</small></span><span class="arrow">›</span></button>').join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
+ '<div class="roster-tip">升一軍／降二軍都需等待 4 小時，最多 28 名一軍球員。</div>'+
+ '<div class="list-scroller">'+list.map(line).join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
 }
 function coach(){
  const data=state.coach;if(!data)return empty('戰術資料讀取中');
@@ -133,7 +147,7 @@ root.addEventListener('click',async e=>{
  if(b.dataset.view){state.view=state.view===b.dataset.view?'':b.dataset.view;render();return;}
  if(b.dataset.player){openPlayer(Number(b.dataset.player));return;}
  if(b.dataset.sign){openSign(Number(b.dataset.sign));return;}
- if(b.dataset.demote){if(!confirm('確定下放二軍？'))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:Number(b.dataset.demote),to_level:'reserve'});await load();}catch(err){state.notice=err.message;render()}return;}
+ if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？升降後 4 小時內不可再次變更。'))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice='已完成'+(to==='active'?'升一軍':'降二軍')+'，4 小時後可再次調整。';render();}catch(err){state.notice=err.message;render()}return;}
  const action=b.dataset.action;
  if(action==='logout'){await signOut();state.session=null;state.notice='';render();}
  else if(action==='refresh'){void load();}
