@@ -44,9 +44,8 @@ function roster(){
  const tabs=[['all','全部'],['active','一軍'],['reserve','二軍']];
  const line=p=>{
   const active=p.roster_status==='active',reserve=p.roster_status==='reserve';
-  const changedAt=p.roster_changed_at?new Date(p.roster_changed_at).getTime():0;
-  const availableAt=Math.max(changedAt?changedAt+14400000:0,p.promotion_available_at?new Date(p.promotion_available_at).getTime():0);
-  const cooldown=(active||reserve)&&availableAt>Date.now();
+  const availableAt=reserve&&p.promotion_available_at?new Date(p.promotion_available_at).getTime():0;
+  const cooldown=reserve&&availableAt>Date.now();
   const full=reserve&&currentActive>=28;
   const blocked=cooldown||full;
   const action=active?'下二軍':reserve?'升一軍':null;
@@ -57,7 +56,7 @@ function roster(){
  return '<div class="compact-summary"><div><small>全部球員</small><b>'+all.length+'</b></div><div><small>一軍名單</small><b>'+currentActive+'/28</b></div><div><small>季末上限</small><b>60</b></div></div>'+
  '<div class="switch-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+'</button>').join('')+'</div>'+
  '<div class="inline-search"><input id="filter-players" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
- '<div class="roster-tip">升一軍／降二軍都需等待 4 小時，最多 28 名一軍球員。</div>'+
+ '<div class="roster-tip">降二軍後 4 小時才能再升一軍；升一軍後可隨時下放。一軍最多 28 人。</div>'+
  '<div class="list-scroller">'+list.map(line).join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
 }
 function coach(){
@@ -147,7 +146,7 @@ root.addEventListener('click',async e=>{
  if(b.dataset.view){state.view=state.view===b.dataset.view?'':b.dataset.view;render();return;}
  if(b.dataset.player){openPlayer(Number(b.dataset.player));return;}
  if(b.dataset.sign){openSign(Number(b.dataset.sign));return;}
- if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？升降後 4 小時內不可再次變更。'))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice='已完成'+(to==='active'?'升一軍':'降二軍')+'，4 小時後可再次調整。';render();}catch(err){state.notice=err.message;render()}return;}
+ if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？降二軍後需等待 4 小時才能升回一軍。'))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice=to==='active'?'已升上一軍，可隨時再降二軍。':'已下放二軍，4 小時後可再升一軍。';render();}catch(err){state.notice=err.message;render()}return;}
  const action=b.dataset.action;
  if(action==='logout'){await signOut();state.session=null;state.notice='';render();}
  else if(action==='refresh'){void load();}
