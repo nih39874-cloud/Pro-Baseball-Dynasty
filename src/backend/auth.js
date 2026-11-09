@@ -13,7 +13,10 @@ export async function refreshSession(){check();const s=readSession();if(!s?.refr
  const next=await r.json();storeSession(next);return next;
 }
 export async function signIn(username,password){check();if(!/^(GM|brothers|dragons|unilions|guardians|rakuten|TSG)$/i.test(username))throw Error('請輸入六隊或 GM 的帳號');
- const r=await fetch(`${BACKEND.url}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:BACKEND.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({email:emailOf(username),password})});
+ const isGM=username.toUpperCase()==='GM';
+ if(!(isGM?/^\d{8}$/.test(password):/^\d{4}$/.test(password)))throw Error(isGM?'GM 需輸入 8 位數字 PIN':'球隊需輸入 4 位數字 PIN');
+ const authPassword=isGM?password:`DD${password}`;
+ const r=await fetch(`${BACKEND.url}/auth/v1/token?grant_type=password`,{method:'POST',headers:{apikey:BACKEND.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({email:emailOf(username),password:authPassword})});
  if(!r.ok)throw Error('帳號或密碼錯誤，或帳號尚未建立');
  const s=await r.json();storeSession(s);
  try{const x=await apiCall('status');return {session:s,status:x};}catch(e){storeSession(null);throw e;}
