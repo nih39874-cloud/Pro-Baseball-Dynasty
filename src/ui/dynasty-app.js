@@ -5,7 +5,7 @@ const root=document.querySelector('#app');
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
 const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,
-  search:'',filter:'all',gameTab:'schedule',selectedOpponent:'brothers',openingMode:false,openingIds:null,notice:'',loading:false,loginUser:'GM'};
+  search:'',filter:'all',gameTab:'schedule',selectedOpponent:'brothers',openingMode:false,openingIds:null,lineupDraft:null,lineupTab:'batting',lineupPicker:null,notice:'',loading:false,loginUser:'GM'};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const fmt=n=>Number(n??0).toLocaleString('zh-TW');
 const gm=()=>state.session?.role==='gm';
@@ -73,18 +73,47 @@ function roster(){
  '<div class="roster-tip">'+notice+'</div>'+
  '<div class="list-scroller">'+list.map(line).join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
 }
+const defenseSlots=[['P','投手'],['C','捕手'],['1B','一壘'],['2B','二壘'],['3B','三壘'],['SS','游擊'],['LF','左外'],['CF','中外'],['RF','右外']];
+function publicStats(p){
+ const rows=(p.reference_stats||[]).filter(r=>r.league_level==='first');
+ const group=rows.length?rows:(p.reference_stats||[]);
+ const batting=group.reduce((a,r)=>{for(const k of ['AB','H','BB','HBP','SF','HR','RBI','SB'])a[k]+=(Number(r.batting?.[k])||0);return a},{AB:0,H:0,BB:0,HBP:0,SF:0,HR:0,RBI:0,SB:0});
+ const pitching=group.reduce((a,r)=>{for(const k of ['IP','ER','SO','BB'])a[k]+=(Number(r.pitching?.[k])||0);return a},{IP:0,ER:0,SO:0,BB:0});
+ const avg=batting.AB?'.'+String(Math.round(batting.H/batting.AB*1000)).padStart(3,'0'):'—';
+ const obp=batting.AB+batting.BB+batting.HBP+batting.SF?'.'+String(Math.round((batting.H+batting.BB+batting.HBP)/(batting.AB+batting.BB+batting.HBP+batting.SF)*1000)).padStart(3,'0'):'—';
+ const era=pitching.IP?(pitching.ER*9/(Math.floor(pitching.IP)+((Math.round(pitching.IP*10)%10)/3))).toFixed(2):'—';
+ return {avg,obp,hr:batting.AB?batting.HR:'—',rbi:batting.AB?batting.RBI:'—',era,so:pitching.IP?pitching.SO:'—'};
+}
+function draftForOpponent(){
+ const opponent=state.selectedOpponent;
+ const saved=(state.coach?.lineups||[]).find(x=>x.opponent_team_id===opponent);
+ const active=(state.coach?.players||[]).filter(x=>x.roster_status==='active');
+ if(saved)return {order:(saved.batting_order||[]).map(Number),defense:Object.fromEntries(Object.entries(saved.defense||{}).map(([k,v])=>[k,Number(v)])),dirty:false};
+ const fielders=active.filter(x=>x.players_master?.primary_position!=='P');
+ const pitcher=active.find(x=>x.players_master?.primary_position==='P');
+ const chosen=fielders.slice(0,9).map(x=>Number(x.master_player_id));
+ const slots=Object.fromEntries(defenseSlots.map(([k],i)=>[k,k==='P'?Number(pitcher?.master_player_id||0):chosen[i>0?i-1:0]||0]));
+ return {order:chosen,defense:slots,dirty:false};
+}
 function coach(){
  const data=state.coach;if(!data)return empty('戰術資料讀取中');
  const opps=TEAMS.filter(t=>t.id!==ownTeam());
  const opp=opps.some(x=>x.id===state.selectedOpponent)?state.selectedOpponent:opps[0]?.id;
- const saved=(data.lineups||[]).find(x=>x.opponent_team_id===opp);
- const roster=data.players||[],byId=new Map(roster.map(p=>[p.master_player_id,p.players_master?.full_name||String(p.master_player_id)]));
- return box('球隊戰術','<div class="form-row"><label>對戰對手</label><select id="opponent">'+opps.map(t=>'<option value="'+t.id+'" '+(opp===t.id?'selected':'')+'>'+t.name+'</option>').join('')+'</select></div><div class="stack-buttons">'+
- '<button data-action="suggest">產生建議先發打線 <span>›</span></button>'+
- '<button data-view="lineup">查看目前先發打線 <span>›</span></button>'+
- '<button data-view="pitching">投手與牛棚設定 <span>›</span></button>'+
- '<button data-view="roster-moves">一二軍升降 <span>›</span></button></div><p class="quiet">比賽由電腦模擬；球員配置與戰術會影響結果。</p>')+
- (state.view==='lineup'?box('目前打線',saved?'<div class="list-scroller smaller">'+saved.batting_order.map((id,i)=>'<div class="lineup-row">'+(i+1)+' 棒 <b>'+escape(byId.get(id)||id)+'</b></div>').join('')+'</div>':empty('尚未建立正式打序')):state.view==='pitching'?box('投手調度',empty('投手輪值編輯尚未啟用，現有陣容資料不變。')):state.view==='roster-moves'?box('球員升降','<div class="list-scroller smaller">'+roster.filter(p=>p.roster_status==='active').map(p=>'<div class="list-row"><span class="row-main">'+escape(p.players_master?.full_name||p.master_player_id)+'</span><button class="mini" data-demote="'+p.master_player_id+'">下二軍</button></div>').join('')+'</div>'):'');
+ if(state.view==='lineup'){
+  const draft=state.lineupDraft||draftForOpponent();
+  const roster=(data.players||[]),byId=new Map(roster.map(p=>[Number(p.master_player_id),p]));
+  const name=id=>escape(byId.get(Number(id))?.players_master?.full_name||'尚未選人');
+  const batting= draft.order.map((id,i)=>'<div class="lineup-edit-row"><span class="bat-num">'+(i+1)+'</span><button data-pick-batter="'+i+'" class="lineup-person"><b>'+name(id)+'</b><small>'+escape(byId.get(Number(id))?.players_master?.primary_position||'')+' · '+publicStats(byId.get(Number(id))||{}).avg+' / '+publicStats(byId.get(Number(id))||{}).obp+'</small></button><div class="reorder"><button data-order-up="'+i+'" '+(i===0?'disabled':'')+' aria-label="上移棒次">↑</button><button data-order-down="'+i+'" '+(i===8?'disabled':'')+' aria-label="下移棒次">↓</button></div></div>').join('');
+  const defense=defenseSlots.map(([key,label])=>'<div class="lineup-edit-row"><span class="def-pos">'+label+'</span><button data-pick-defense="'+key+'" class="lineup-person"><b>'+name(draft.defense[key])+'</b><small>點擊更換守備球員</small></button><span class="lineup-arrow">›</span></div>').join('');
+  const picker=state.lineupPicker;
+  const pickerBody=picker?'<div class="overlay"><div class="dialog picker-dialog"><div class="dialog-title"><strong>選擇'+(picker.type==='bat'?'第 '+(picker.index+1)+' 棒':defenseSlots.find(x=>x[0]===picker.key)?.[1])+'球員</strong><button data-action="close-picker">×</button></div><div class="picker-headers"><span>2024 公開成績</span><span>AVG / OBP / HR</span></div><div class="picker-list">'+roster.filter(p=>p.roster_status==='active').map(p=>{const n=Number(p.master_player_id),v=publicStats(p);return '<button data-choose-player="'+n+'"><span><b>'+escape(p.players_master?.full_name||n)+'</b><small>'+escape(p.players_master?.primary_position||'—')+'</small></span><span class="picker-stats">'+v.avg+' / '+v.obp+' / '+v.hr+'</span></button>'}).join('')+'</div></div></div>':'';
+  return '<div class="editor-shell"><div class="editor-head"><button class="editor-back" data-action="exit-lineup">‹ 戰術選單</button><div class="editor-opponent">'+escape(tname(opp))+'</div></div>'+
+   '<div class="editor-tabs"><button data-lineup-tab="batting" class="'+(state.lineupTab==='batting'?'selected':'')+'">打擊順序</button><button data-lineup-tab="defense" class="'+(state.lineupTab==='defense'?'selected':'')+'">守備位置</button></div>'+
+   '<div class="editor-rows">'+(state.lineupTab==='batting'?batting:defense)+'</div>'+
+   '<div class="editor-actions"><button data-action="suggest-lineup" class="secondary-action">系統建議</button><button data-action="save-lineup" class="primary-action">儲存打線</button></div>'+
+   '<div class="editor-hint">資料為 2024 年公開成績，非隱藏戰力。投手不可列入九棒，守備含指定打擊。</div></div>'+pickerBody;
+ }
+ return '<section class="panel tactics-main"><div class="panel-title">對戰專用打線</div><div class="form-row"><label>對戰對手</label><select id="opponent">'+opps.map(t=>'<option value="'+t.id+'" '+(opp===t.id?'selected':'')+'>'+t.name+'</option>').join('')+'</select></div><div class="stack-buttons"><button data-action="enter-lineup">編輯完整先發打線 <span>›</span></button><button data-action="suggest-lineup">取得系統建議 <span>›</span></button><button data-page="roster">球員升降管理 <span>›</span></button></div><p class="quiet">點「編輯完整先發打線」會開啟全頁，完整顯示九棒，可自行換人、調棒次及守備位置。</p></section>';
 }
 function season(){
  const games=state.session?.upcoming||[],recent=state.session?.recent||[];
@@ -148,13 +177,18 @@ async function load(){
  render();
 }
 function goto(page){
- state.page=page;state.view='';state.search='';state.filter='all';state.openingMode=false;state.openingIds=null;state.notice='';
+ state.page=page;state.lineupDraft=null;state.lineupPicker=null;state.view='';state.search='';state.filter='all';state.openingMode=false;state.openingIds=null;state.notice='';
  if(page==='observe'&&!gm()){state.page='home';return render();}
  render();void load();
 }
 root.addEventListener('click',async e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.page){goto(b.dataset.page);return;}
+ if(b.dataset.lineupTab){state.lineupTab=b.dataset.lineupTab;render();return;}
+ if(b.dataset.orderUp||b.dataset.orderDown){const index=Number(b.dataset.orderUp??b.dataset.orderDown),other=index+(b.dataset.orderUp!==undefined?-1:1),order=state.lineupDraft?.order||[];if(other>=0&&other<order.length){[order[index],order[other]]=[order[other],order[index]];state.lineupDraft.dirty=true;}render();return;}
+ if(b.dataset.pickBatter!==undefined){state.lineupPicker={type:'bat',index:Number(b.dataset.pickBatter)};render();return;}
+ if(b.dataset.pickDefense){state.lineupPicker={type:'def',key:b.dataset.pickDefense};render();return;}
+ if(b.dataset.choosePlayer){const id=Number(b.dataset.choosePlayer),d=state.lineupDraft,p=state.lineupPicker;if(d&&p){if(p.type==='bat'){const other=d.order.indexOf(id);if(other>=0){d.order[other]=d.order[p.index];}d.order[p.index]=id;}else{const other=Object.keys(d.defense).find(k=>d.defense[k]===id);if(other)d.defense[other]=d.defense[p.key];d.defense[p.key]=id;}d.dirty=true;}state.lineupPicker=null;render();return;}
  if(b.dataset.filter){state.filter=b.dataset.filter;render();return;}
  if(b.dataset.gametab){state.gameTab=b.dataset.gametab;render();return;}
  if(b.dataset.view){state.view=state.view===b.dataset.view?'':b.dataset.view;render();return;}
@@ -163,7 +197,12 @@ root.addEventListener('click',async e=>{
  if(b.dataset.sign){openSign(Number(b.dataset.sign));return;}
  if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？降二軍後需等待 4 小時才能升回一軍。'))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice=to==='active'?'已升上一軍，可隨時再降二軍。':'已下放二軍，4 小時後可再升一軍。';render();}catch(err){state.notice=err.message;render()}return;}
  const action=b.dataset.action;
- if(action==='open-opening'){state.openingMode=true;state.openingIds=[...(state.roster?.opening_roster?.player_ids||state.roster?.players?.filter(p=>p.roster_status==='active').map(p=>p.master_player_id)||[])].slice(0,28);state.search='';render();}
+ if(action==='enter-lineup'){state.lineupDraft=draftForOpponent();state.lineupTab='batting';state.view='lineup';render();}
+ else if(action==='exit-lineup'){state.view='';state.lineupDraft=null;state.lineupPicker=null;render();}
+ else if(action==='close-picker'){state.lineupPicker=null;render();}
+ else if(action==='save-lineup'){const d=state.lineupDraft;try{if(!d||d.order.length!==9||new Set(d.order).size!==9||Object.values(d.defense).some(x=>!x))throw Error('需選滿九棒與九個守備位置');await apiCall('coach-save',{team_id:ownTeam(),opponent_team_id:state.selectedOpponent,batting_order:d.order,defense:d.defense});state.coach=await apiCall('coach-config',{team_id:ownTeam()});state.lineupDraft=draftForOpponent();state.notice='先發打線已儲存。';render();}catch(err){state.notice=err.message||'儲存失敗';render();}}
+ else if(action==='suggest-lineup'){try{const r=await apiCall('coach-default',{team_id:ownTeam()});const v=r.default_lineup;state.lineupDraft={order:(v.batting_order||[]).map(Number),defense:Object.fromEntries(Object.entries(v.defense||{}).map(([k,id])=>[k,Number(id)])),dirty:true};state.view='lineup';state.lineupTab='batting';state.notice='已載入系統建議；按儲存才會套用。';render();}catch(err){state.notice=err.message;render();}}
+ else if(action==='open-opening'){state.openingMode=true;state.openingIds=[...(state.roster?.opening_roster?.player_ids||state.roster?.players?.filter(p=>p.roster_status==='active').map(p=>p.master_player_id)||[])].slice(0,28);state.search='';render();}
  else if(action==='cancel-opening'){state.openingMode=false;state.search='';render();}
  else if(action==='save-opening'){try{await apiCall('first-team-save',{team_id:ownTeam(),player_ids:state.openingIds||[]});state.roster=await apiCall('roster',{team_id:ownTeam()});state.openingMode=false;state.search='';state.notice='新球季一軍名單已提交，開季前仍可修改。';render();}catch(err){state.notice=err.message||'名單提交失敗';render();}}
  else if(action==='logout'){await signOut();state.session=null;state.notice='';render();}
@@ -174,7 +213,7 @@ root.addEventListener('click',async e=>{
  else if(action==='suggest'){try{const r=await apiCall('coach-default',{team_id:ownTeam()});state.notice='建議打線已取得。打序編輯功能仍在整合中。';render();}catch(err){state.notice=err.message;render()}}
 });
 root.addEventListener('change',e=>{
- if(e.target.id==='opponent'){state.selectedOpponent=e.target.value;render();}
+ if(e.target.id==='opponent'){state.selectedOpponent=e.target.value;state.lineupDraft=null;render();}
  if(e.target.name==='user'){state.loginUser=e.target.value;}
 });
 root.addEventListener('submit',async e=>{
