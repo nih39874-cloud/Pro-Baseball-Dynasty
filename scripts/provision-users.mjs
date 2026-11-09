@@ -8,7 +8,9 @@ const raw=process.env.DIAMOND_ACCOUNT_PASSWORDS;
 if(!url||!key||!raw)throw Error('Missing provisioning environment secrets');
 const credentials=JSON.parse(raw);
 const entries=[['GM',null,'gm','official'],['brothers','brothers','manager','official'],['dragons','dragons','manager','official'],['unilions','unilions','manager','official'],['guardians','guardians','manager','official'],['rakuten','rakuten','manager','official'],['TSG','TSG','manager','official']];
-const heads={apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'};
+// New sb_secret_ API keys authenticate through apikey, not a Bearer JWT.
+const heads={apikey:key,'Content-Type':'application/json'};
+if(!key.startsWith('sb_secret_'))heads.Authorization=`Bearer ${key}`;
 async function api(path,options={}){
  const r=await fetch(`${url}${path}`,{...options,headers:{...heads,...options.headers}});
  const data=await r.json().catch(()=>({}));
