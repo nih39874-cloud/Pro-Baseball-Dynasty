@@ -375,3 +375,15 @@ input::placeholder{color:#7c94aa}
 .positive{color:#a8ee97!important}.negative{color:#f4a9a0!important}
 .finance-explain{font-size:10px;color:#829cae;line-height:1.35;flex-shrink:0}
 @media(max-height:770px){.finance-arena{min-height:105px;padding:11px;gap:2px}.finance-arena strong{font-size:21px}.finance-kpi-grid>div{padding:8px}.monthly-expenses{gap:4px}.expense-row{padding:6px}.finance-section-head{margin-top:0}.finance-explain{font-size:9px}}
+
+.gm-lab{display:flex;flex-direction:column;min-height:0;flex:1;gap:10px;overflow:hidden}
+.gm-lab .market-hero{min-height:116px}.gm-lab .compact-summary{flex-shrink:0}
+.gm-lab-actions{display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,94px);gap:8px;flex-shrink:0}
+.gm-lab-actions button{background:linear-gradient(145deg,#24445d,#15283a);color:#f3faff;border:1px solid #4f718a;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px}
+.gm-lab-actions button span{font-size:24px;color:#b8fa93}.gm-lab-actions button b{font-size:13px}.gm-lab-actions button small{color:#a2bacb;font-size:10px}
+.gm-lab-report{min-height:0;flex:1;overflow:auto;background:#172b3b;border:1px solid #3b566f;border-radius:12px;padding:11px}
+.gm-issue{display:flex;flex-direction:column;gap:4px;padding:10px 7px;border-bottom:1px solid #365065}
+.gm-issue strong{font-size:10px;color:#f5d999}.gm-issue span{font-size:12px;color:#f2f6fc}
+.gm-issue-error strong{color:#ff8f89}.gm-no-issues{margin-top:10px;padding:14px;color:#b7edac;background:#1e443c;border:1px solid #448068;border-radius:9px;font-size:12px}
+.gm-observe-link{background:#29465c;color:#c7ebf6;border:1px solid #5d8095;border-radius:9px;padding:10px;font-weight:750;font-size:12px;flex-shrink:0}
+@media(max-height:720px){.gm-lab .market-hero{min-height:100px}.gm-lab-actions{grid-template-rows:repeat(2,73px)}}
