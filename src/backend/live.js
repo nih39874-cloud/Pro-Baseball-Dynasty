@@ -29,6 +29,7 @@ export async function subscribeLiveGame(gameId,onUpdate) {
   channel=client.channel(`diamond-match-${gameId}`)
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'match_sessions',filter:`game_id=eq.${gameId}`},onUpdate)
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'games',filter:`id=eq.${gameId}`},onUpdate)
+   .on('postgres_changes',{event:'UPDATE',schema:'public',table:'match_team_controls',filter:`game_id=eq.${gameId}`},onUpdate)
    .subscribe();
  }catch{
   // Polling in GameUI remains the official fallback; never pretend WebSocket succeeded.
