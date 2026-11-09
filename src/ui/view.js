@@ -1,7 +1,4 @@
 import {renderCoachSetup,validateCoachSelection,FIELDING_POSITIONS} from './coach-setup.js';
-import {LocalManager} from '../core/local-manager.js';
-import {persist} from '../core/state.js';
-import {localRosterView,localLineupView} from './local-management.js';
 import {renderLivePanel} from './live-view.js';
 import {motionFromPointer,motionRoleFromGame} from './live-motion.js';
 import {liveApi,subscribeLiveGame} from '../backend/live.js';
@@ -13,11 +10,12 @@ const $=id=>document.getElementById(id);
 const fmt=n=>(n/100000000).toFixed(2)+' 億';
 function escapeHtml(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 export class GameUI{
- constructor(engine,scene=null){this.e=engine;this.scene=scene;this.liveReplayActive=false;this.state=engine.s;this.modal='intro';this.lastMessage='';this.lastStamp=0;this.lastRole='';this.lastStatus='';this.lastPhase='';this.lastInning='';this.batToggle=false;this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachOpponent=null;this.coachDraft=null;this.liveList=null;this.liveSelected=null;this.liveData=null;this.liveRoster=null;this.liveStop=null;this.liveTimer=null;this.liveHeartbeat=null;this.liveLoading=false;this.liveBusy=false;this.liveAim={x:0,y:0};this.liveMotion={dx:0,dz:0};this.liveFieldPos='CF';this.liveMeterAt=0;this.liveStepTimer=null;this.working=false;this.localManager=null;this.localOpponent=null;this.bind();this.showModal('intro');
- fetch(new URL('../../assets/player-avatar-catalog.json',import.meta.url))
- .then(r=>{if(!r.ok)throw Error('球員名單載入失敗');return r.json()})
- .then(d=>{this.localManager=new LocalManager(d.players||[],TEAMS.map(t=>t.id));if(!this.remote&&['dashboard','roster','coach'].includes(this.modal))this.renderModal()})
- .catch(e=>{this.localManagerError=e.message;if(!this.remote&&['roster','coach'].includes(this.modal))this.renderModal()});
+ constructor(engine,scene=null){this.e=engine;this.scene=scene;this.liveReplayActive=false;this.state=engine.s;this.modal='intro';this.lastMessage='';this.lastStamp=0;this.lastRole='';this.lastStatus='';this.lastPhase='';this.lastInning='';this.batToggle=false;this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachOpponent=null;this.coachDraft=null;this.liveList=null;this.liveSelected=null;this.liveData=null;this.liveRoster=null;this.liveStop=null;this.liveTimer=null;this.liveHeartbeat=null;this.liveLoading=false;this.liveBusy=false;this.liveAim={x:0,y:0};this.liveMotion={dx:0,dz:0};this.liveFieldPos='CF';this.liveMeterAt=0;this.liveStepTimer=null;this.working=false;this.bind();this.showModal('auth');
+ apiCall('status').then(status=>{
+  this.remote=status;
+  if(status.role!=='gm'&&status.team_id)this.state.team=status.team_id;
+  if(this.modal==='auth')this.showModal('dashboard');
+ }).catch(()=>{/* No active session: keep login screen. */});
  }
  bind(){
  $('btn-menu').addEventListener('click',()=>this.showModal('dashboard'));
@@ -65,10 +63,10 @@ export class GameUI{
   $('modal').classList.toggle('live-immersive',immersive);
   document.getElementById('app').classList.toggle('live-mode',immersive);
  }
- showModal(type){if(type!=='live')this.stopLiveWatcher();this.modal=type;$('modal').classList.remove('hidden');this.syncLiveDisplay();this.renderModal();if(this.remote&&['dashboard','finance','season','gm','roster','fa','coach','live'].includes(type))this.loadRemote(type)}
- hideModal(){this.stopLiveWatcher();$('modal').classList.add('hidden');this.modal='';this.syncLiveDisplay();this.render();}
- async handleModalClick(e){const b=e.target.closest('[data-nav],[data-team],[data-start],[data-gm],[data-quick],[data-restart],[data-login],[data-logout],[data-refresh],[data-submit-roster],[data-offer],[data-coach-opponent],[data-coach-save],[data-coach-autofill],[data-coach-move],[data-local-opponent],[data-local-move],[data-local-save],[data-local-training],[data-live-select],[data-live-join],[data-live-mode],[data-live-cmd],[data-live-refresh],[data-live-pitch],[data-live-bat],[data-live-abs],[data-live-stage],[data-live-replay],[data-live-motion]');if(!b)return;
- if(b.dataset.login!==undefined){if(this.working)return;const username=$('loginUser')?.value?.trim();const password=$('loginPass')?.value||'';this.working=true;try{const r=await signIn(username,password);this.remote=r.status;this.state.team=r.status.team_id||this.state.team;this.openToast('登入成功：'+(r.status.role==='gm'?'GM':'球隊經理人'));this.showModal('dashboard');}finally{this.working=false;}return;}
+ showModal(type){if(!this.remote&&type!=='auth')type='auth';if(type!=='live')this.stopLiveWatcher();this.modal=type;$('modal').classList.remove('hidden');this.syncLiveDisplay();this.renderModal();if(this.remote&&['dashboard','finance','season','gm','roster','fa','coach','live'].includes(type))this.loadRemote(type)}
+ hideModal(){if(!this.remote){this.showModal('auth');return;}this.stopLiveWatcher();$('modal').classList.add('hidden');this.modal='';this.syncLiveDisplay();this.render();}
+ async handleModalClick(e){const b=e.target.closest('[data-nav],[data-team],[data-start],[data-gm],[data-quick],[data-restart],[data-login],[data-logout],[data-refresh],[data-submit-roster],[data-offer],[data-coach-opponent],[data-coach-save],[data-coach-autofill],[data-coach-move],[data-live-select],[data-live-join],[data-live-mode],[data-live-cmd],[data-live-refresh],[data-live-pitch],[data-live-bat],[data-live-abs],[data-live-stage],[data-live-replay],[data-live-motion]');if(!b)return;
+ if(b.dataset.login!==undefined){if(this.working)return;const username=$('loginUser')?.value?.trim();const password=$('loginPass')?.value||'';this.working=true;try{const r=await signIn(username,password);this.remote=r.status;if(r.status.role!=='gm'&&r.status.team_id)this.state.team=r.status.team_id;this.openToast('登入成功：'+(r.status.role==='gm'?'GM':'球隊經理人'));this.showModal('dashboard');}finally{this.working=false;}return;}
  if(b.dataset.logout!==undefined){await signOut();this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachDraft=null;$('connection').textContent='LOCAL';this.openToast('已登出正式聯盟');this.showModal('auth');return;}
  if(b.dataset.refresh!==undefined){await this.loadRemote(this.modal);return;}
  if(b.dataset.submitRoster!==undefined){if(!this.remote)return;const kind=b.dataset.submitRoster;const ids=[...$('modalBody').querySelectorAll('[data-roster-pick]:checked')].map(x=>Number(x.value));const cap=kind==='playoff32'?32:60;if(ids.length>cap)throw Error('超過 '+cap+' 人名單上限');await apiCall('submit-roster',{team_id:this.viewTeam(),kind,player_ids:ids});this.openToast('已儲存名單');await this.loadRemote('roster');return;}
@@ -139,27 +137,6 @@ export class GameUI{
   await liveApi('command',{game_id:this.liveSelected,team_id:this.viewTeam(),kind,player_id:player,command_id:crypto.randomUUID()});
   this.openToast('戰術指令已由伺服器接受');await this.fetchLiveGame();return;
  }
- if(b.dataset.localTraining!==undefined&&!this.remote){
-  if(!this.localManager)throw Error('本機球隊管理尚未載入');
-  const amount=Number($('trainingBudget')?.value),kind=$('trainingKind')?.value;
-  this.localManager.investTraining(this.state.team,kind,amount,this.state.practice);
-  persist(this.state);
-  this.openToast('訓練預算已扣除並記錄');this.renderModal();return;
- }
- if(b.dataset.localOpponent!==undefined&&!this.remote){this.localOpponent=b.dataset.localOpponent;this.renderModal();return;}
- if(b.dataset.localMove!==undefined&&!this.remote){
-  if(!this.localManager)throw Error('球員名單尚未載入');
-  this.localManager.move(this.state.team,b.dataset.localPlayer,b.dataset.localMove==='active');
-  this.openToast('本機一二軍名單已更新');this.renderModal();return;
- }
- if(b.dataset.localSave!==undefined&&!this.remote){
-  if(!this.localManager)throw Error('球員名單尚未載入');
-  const area=$('modalBody');
-  const batting=[...area.querySelectorAll('[data-local-bat]')].sort((a,b)=>Number(a.dataset.localBat)-Number(b.dataset.localBat)).map(x=>x.value);
-  const defense=Object.fromEntries([...area.querySelectorAll('[data-local-defense]')].map(x=>[x.dataset.localDefense,x.value]));
-  this.localManager.saveLineup(this.state.team,b.dataset.localSave,batting,defense);
-  this.openToast('本機對戰打序與守備已儲存');this.renderModal();return;
- }
  if(b.dataset.coachOpponent!==undefined){this.coachOpponent=b.dataset.coachOpponent;this.coachDraft=null;this.renderModal();return;}
  if(b.dataset.coachAutofill!==undefined){
   const data=await apiCall('coach-default',{team_id:this.viewTeam()});
@@ -185,7 +162,7 @@ export class GameUI{
   await this.loadRemote('coach');return;
  }
  if(b.dataset.nav){if(b.dataset.nav==='close'){this.hideModal();return;}this.showModal(b.dataset.nav);return;}
- if(b.dataset.team){if(this.remote&&this.remote.role!=='gm')throw Error('正式聯盟不能更換自己的球隊');this.state.team=b.dataset.team;this.state.practice.selectedTeam=b.dataset.team;this.renderModal();if(this.remote&&['roster','coach','live'].includes(this.modal)){this.coachOpponent=null;this.coachDraft=null;await this.loadRemote(this.modal);}return;}
+ if(b.dataset.team){if(!this.remote||this.remote.role!=='gm')throw Error('僅 GM 可以切換球隊');this.state.team=b.dataset.team;this.state.practice.selectedTeam=b.dataset.team;this.renderModal();if(this.remote&&['roster','coach','live'].includes(this.modal)){this.coachOpponent=null;this.coachDraft=null;await this.loadRemote(this.modal);}return;}
  if(b.dataset.start){const opp=(this.selectedOpp&&this.selectedOpp!==this.state.team)?this.selectedOpp:TEAMS.find(t=>t.id!==this.state.team).id;this.e.resetGame(this.state.team,opp);this.state.mode=['field','coach','auto'].includes(b.dataset.start)?b.dataset.start:'field';this.state.pendingMode=null;this.hideModal();this.render();this.openToast(this.state.mode==='field'?'已進入投打操作：左手瞄準，右手投球／揮棒':this.state.mode==='coach'?'已進入總教練視角：左手移動，滑動球場轉向':'AI 模擬已啟動');return;}
  if(b.dataset.restart){const mode=this.state.mode;this.e.resetGame(this.state.team,this.state.home===this.state.team?this.state.visitor:this.state.home);this.state.mode=mode;this.hideModal();return;}
  if(b.dataset.quick){if(b.dataset.quick==='atbat')this.e.fastForwardAtBat();if(b.dataset.quick==='game')this.e.advanceGame();this.renderModal();return;}
@@ -281,29 +258,12 @@ export class GameUI{
  }
  if(this.modal==='roster'&&this.remote){const r=this.remoteRoster;const members=r?.players||[];const picks=new Set(r?.rosters?.find(x=>x.kind==='protected60')?.player_ids||[]);$('modalBody').innerHTML=this.header('正式球員與名單',`${TEAMS.find(t=>t.id===this.viewTeam())?.name||''} · 本季 ${this.remote.year}`)+`${this.remote.role==='gm'?`<div class="team-grid">${this.teamCards()}</div>`:''}<div class="notice">現有球員 ${members.length} 人。已整合2024一、二軍投打成績與2025／2026年選秀；FA區分開季估算、歷史出賽下限及季末公布值。薪資與真人臉型仍需個別核實。</div>${members.length?`<div class="listLog" style="max-height:33vh">${members.map(p=>renderRosterRow(p,picks.has(p.master_player_id))).join('')}</div><div class="modal-actions"><button class="btn accent" data-submit-roster="protected60">保存 60 人名單</button><button class="btn" data-submit-roster="playoff32">保存 32 人名單</button></div>`:'<p>資料庫目前尚未匯入實際球員。名單操作會在球員資料加入後啟用。</p>'}<div class="modal-actions"><button class="btn" data-refresh>重新讀取</button><button class="btn" data-nav="dashboard">返回</button></div>`;return;}
  if(this.modal==='fa'&&this.remote){const r=this.remoteFA;const ps=r?.players||[];$('modalBody').innerHTML=this.header('自由球員接洽','無球隊及未列入 60 人保留名單的球員可接洽，季中也可進行。')+`<div class="notice">目前可接洽球員 ${ps.length} 人。球員不會因為無人簽約就消失。</div>${ps.length?`<div class="formline"><label>球員</label><select id="faPlayer">${ps.map(p=>`<option value="${p.master_player_id}">${escapeHtml(p.players_master?.full_name||String(p.master_player_id))}</option>`).join('')}</select><label>月薪</label><input id="faSalary" type="number" min="70000" value="100000"/><label>年限</label><input id="faYears" type="number" min="1" max="5" value="1"/><button class="btn accent" data-offer="1">提出接洽</button></div>`:''}<div class="modal-actions"><button class="btn" data-refresh>重新讀取</button><button class="btn" data-nav="dashboard">返回</button></div>`;return;}
- if(this.modal==='finance'&&this.remote){const r=this.remote;$('modalBody').innerHTML=this.header('正式聯盟財務',`${r.year} 球季，新台幣計價`)+`<div class="panel-grid">${(r.finances||[]).map(f=>`<div class="metric"><small>${TEAMS.find(t=>t.id===f.team_id)?.name||f.team_id}</small><b>${fmt(f.cash_ntd)}</b><small>未清償 ${Number(f.debt_ntd).toLocaleString('zh-TW')} 元</small></div>`).join('')}</div><p>票房、贊助及訓練費採遊戲平衡估算，不代表真實球團財報。</p><button class="btn" data-nav="dashboard">返回</button>`;return;}
+ if(this.modal==='finance'&&this.remote){const r=this.remote;$('modalBody').innerHTML=this.header('球隊經營財務',`${r.year} 球季，新台幣計價`)+`<div class="panel-grid">${(r.finances||[]).map(f=>`<div class="metric"><small>${TEAMS.find(t=>t.id===f.team_id)?.name||f.team_id}</small><b>${fmt(f.cash_ntd)}</b><small>未清償 ${Number(f.debt_ntd).toLocaleString('zh-TW')} 元</small></div>`).join('')}</div><p>票房、贊助及訓練費採遊戲平衡估算，不代表真實球團財報。</p><button class="btn" data-nav="dashboard">返回</button>`;return;}
  if(this.modal==='season'&&this.remote){const r=this.remote;$('modalBody').innerHTML=this.header('正式賽程',`2024 起始 · 每週二 08:00 開季 · Asia/Taipei`)+`<div class="notice">${!r.clock_enabled?'正式六隊聯盟暫停至正式上線；不會推進年份或賽事。':r.is_ready?'GM 時鐘已開啟，將依每週二開季的排程運行。':'GM 時鐘持續運行中；待真實球員資料齊全後才開始產生比賽與戰績。'}</div><div class="listLog" style="max-height:48vh">${(r.upcoming||[]).slice(0,25).map(g=>`<div class="rowline">${escapeHtml(g.away_team_id)} @ ${escapeHtml(g.home_team_id)} <span>${new Date(g.scheduled_at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}</span></div>`).join('')||'未來一小時至近期暫無賽程'}</div><button class="btn" data-nav="dashboard">返回</button>`;return;}
  if(this.modal==='gm'&&this.remote){const r=this.remote;if(r.role!=='gm'){$('modalBody').innerHTML=this.header('禁止進入','僅 GM 可使用時間與財務控制。');return;}$('modalBody').innerHTML=this.header('GM 伺服器控制中心',`真正的 GM 模擬聯盟：${r.year} 年，可快轉、回溯保存年份、修改資金`)+`<div class="notice">${r.clock_enabled?'GM 時鐘每分鐘同步一次。':'GM 時鐘目前關閉。'}${r.is_ready?'已載入可用的 2024 出賽名單與 2025／2026 年選秀球員。':'目前仍缺真實球員名單，GM 賽事與年份快轉尚不可正式結算。'} 正式六隊聯盟保持暫停，不受 GM 操作影響。</div><div class="formline"><button class="btn accent" data-gm="year">模擬並推進一年</button><label>回到年份</label><input id="returnYear" type="number" value="${r.year}" min="2024"/><button class="btn" data-gm="back">回溯存檔</button></div><div class="formline"><label>球隊</label><select id="gmTeam">${this.teamOptions()}</select><label>資金（元）</label><input id="gmFunds" type="number" min="0" value="500000000"/><button class="btn" data-gm="money">儲存資金</button></div><button class="btn" data-nav="dashboard">返回管理</button>`;return;}
- if(this.modal==='dashboard'){$('modalBody').innerHTML=this.header('球隊管理中心',`本機聯盟：${p.year} 年　·　${TEAMS.find(t=>t.id===s.team)?.name}　·　七天一季`)+`<div class="panel-grid"><div class="metric"><small>球隊資金</small><b>${fmt(p.funds[s.team]??START_FUNDS)}</b></div><div class="metric"><small>遊戲年份</small><b>${p.year}</b></div><div class="metric"><small>比賽狀態</small><b>${s.finished?'已結束':s.inning+' 局 '+(s.half==='top'?'上':'下')}</b></div></div><div class="modal-actions"><button class="btn" data-nav="choose">進入練習賽</button><button class="btn accent" data-nav="roster">一二軍球員管理</button><button class="btn accent" data-nav="coach">五套打序／守備</button><button class="btn" data-nav="live">即時比賽（需登入）</button><button class="btn" data-nav="fa">自由球員接洽</button><button class="btn" data-nav="finance">財務</button><button class="btn" data-nav="season">聯盟與球季</button><button class="btn" data-nav="gm">GM 控制中心</button><button class="btn" data-nav="auth">正式聯盟登入</button></div><div class="section"><h3>本場操作</h3><div class="modal-actions"><button class="btn" data-quick="atbat">模擬一打席</button><button class="btn" data-quick="game">模擬至比賽結束</button><button class="btn" data-restart="1">重新開始練習賽</button><button class="btn accent" data-nav="close">繼續觀看／操作</button></div></div><div class="section"><h3>即時戰況</h3><div class="listLog">${s.events.slice(0,8).map(v=>`<div>• ${escapeHtml(v)}</div>`).join('')}</div></div>`;return;}
- if(this.modal==='live'){$('modalBody').innerHTML=this.header('即時比賽','需登入後方可觀看正式聯盟比賽及提交指令。')+'<button class="btn accent" data-nav="auth">前往登入</button><button class="btn" data-nav="dashboard">返回</button>';return;}
- if(this.modal==='coach'){$('modalBody').innerHTML=this.header('本機球隊管理 · 五套打序與守備',TEAMS.find(t=>t.id===s.team)?.name||'')+(this.localManager?localLineupView(this.localManager,s.team,this.localOpponent,TEAMS):'<div class="notice">'+escapeHtml(this.localManagerError||'正在載入球員名單…')+'</div>');return;}
- if(this.modal==='roster'){$('modalBody').innerHTML=this.header('本機球隊球員／一二軍管理',TEAMS.find(t=>t.id===s.team)?.name||'')+(this.localManager?localRosterView(this.localManager,s.team):'<div class="notice">'+escapeHtml(this.localManagerError||'正在載入球員名單…')+'</div>');return;}
- if(this.modal==='finance'){
-  const t=this.localManager?.team(s.team),labels={batting:'打擊訓練',pitching:'投手訓練',fielding:'守備訓練'};
-  $('modalBody').innerHTML=this.header('球隊財務與訓練預算','本機經營模式 · 不影響 Supabase 正式聯盟')+`
-  <div class="panel-grid">${TEAMS.map(team=>`<div class="metric"><small>${team.name}</small><b>${fmt(p.funds[team.id]??START_FUNDS)}</b></div>`).join('')}</div>
-  <div class="section"><h3>分配訓練經費</h3><p>從目前管理球隊的資金扣除，保留支出紀錄；目前不會虛構真實球員能力增幅。</p>
-  <div class="formline"><label>訓練項目</label><select id="trainingKind"><option value="batting">打擊訓練</option><option value="pitching">投手訓練</option><option value="fielding">守備訓練</option></select>
-  <label>支出（新台幣）</label><input id="trainingBudget" type="number" min="100000" max="10000000" step="100000" value="500000"/>
-  <button class="btn accent" data-local-training="1" ${!this.localManager?'disabled':''}>確認支出</button></div>
-  <h3>最近支出</h3><div class="listLog">${(t?.training||[]).slice(0,12).map(row=>`<div class="rowline">${labels[row.kind]||'訓練'}<span>NT$ ${Number(row.amount).toLocaleString('zh-TW')} · ${new Date(row.at).toLocaleString('zh-TW')}</span></div>`).join('')||'<p>尚未分配訓練預算。</p>'}</div></div>
-  <div class="modal-actions"><button class="btn" data-nav="dashboard">返回球隊管理</button></div>`;
-  return;
- }
- if(this.modal==='season'){$('modalBody').innerHTML=this.header('聯盟與七天球季','週二 08:00 開季，所有時間以 Asia/Taipei 為準。')+`<div class="panel-grid"><div class="metric"><small>週二～週五</small><b>例行賽</b></div><div class="metric"><small>週六 08:00～20:00</small><b>季後賽</b></div><div class="metric"><small>週六～週一</small><b>休賽與訓練</b></div></div><div class="rowline">2024 首季 <span>六隊，含台鋼雄鷹</span></div><div class="rowline">例行賽 <span>每隊 120 場；30 場／日，08:00～24:00</span></div><div class="rowline">季後賽 <span>32 人名單自動補全</span></div><div class="rowline">休賽季 <span>36 小時；60 人保留名單與自由球員</span></div><div class="rowline">秋訓／春訓 <span>24 小時</span></div><div class="notice">上列為已定案規格；目前瀏覽器版僅能實際玩本機練習賽。正式伺服器排程與真實名單匯入尚待部署。</div><button class="btn" data-nav="dashboard">返回管理</button>`;return;}
- if(this.modal==='gm'){$('modalBody').innerHTML=this.header('GM 管理員控制中心','管理員練習聯盟與六隊正式聯盟獨立。以下調整只影響此瀏覽器的 GM 本機資料。')+`<div class="panel-grid"><div class="metric"><small>目前模擬年份</small><b>${p.year}</b></div><div class="metric"><small>年份存檔筆數</small><b>${p.timeline.length}</b></div><div class="metric"><small>正式聯盟</small><b>不受影響</b></div></div><div class="section"><h3>快轉時間</h3><div class="formline"><label>推進球季數</label><input type="number" id="addYears" value="1" min="1" max="40"/><button class="btn accent" data-gm="year">快轉</button></div></div><div class="section"><h3>回到歷史存檔</h3><div class="formline"><select id="returnYear">${p.timeline.map(t=>`<option value="${t.year}">${t.year} 年</option>`).join('')}</select><button class="btn" data-gm="back">回溯該年</button></div></div><div class="section"><h3>修改任意球隊資金</h3><div class="formline fundsSet"><select id="gmTeam">${this.teamOptions()}</select><label>金額</label><input id="gmFunds" type="number" min="0" value="500000000"/><button class="btn accent" data-gm="money">設定新台幣金額</button></div></div><div class="modal-actions"><button class="btn" data-nav="dashboard">返回管理</button><button class="btn accent" data-nav="close">返回比賽</button></div>`;return;}
- if(this.modal==='tactics'){$('modalBody').innerHTML=this.header('總教練戰術與調度','鏡頭保留在自家休息區第一人稱；場上投打由 AI 執行。')+`<div class="panel-grid"><div class="metric"><small>換投</small><b>投手調度</b></div><div class="metric"><small>打擊</small><b>代打與觸擊</b></div><div class="metric"><small>守備</small><b>趨前與佈陣</b></div></div><div class="notice">已完成總教練走動與接管模式；已加入賽前打序、守備位置及一二軍升降的後端管理介面；臨場換投和代打仍待串接。</div><div class="modal-actions"><button class="btn accent" data-nav="coach">排打序／守位／升降</button><button class="btn" data-nav="close">回到休息區</button></div>`;return;}
- if(this.modal==='auth'){$('modalBody').innerHTML=this.header('正式聯盟登入','已連接鑽石王朝 Supabase。帳號需先在後端安全建立。')+`<div class="notice">球隊玩家只能管理自己的球隊；GM 只管理獨立的 GM 模擬聯盟。未設定的帳號不會使用假登入。</div><div class="formline"><label>帳號</label><input id="loginUser" autocomplete="username" placeholder="brothers / GM"/><label>密碼</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="登入密碼"/><button class="btn accent" data-login="1">登入</button></div><button class="btn" data-nav="dashboard">返回練習</button>`;return;}
+ if(!this.remote){this.showModal('auth');return;}
+
+ if(this.modal==='auth'){$('modalBody').innerHTML=this.header('鑽石王朝｜球隊經營登入','須登入 GM 或所屬球隊帳號後，才能使用球隊經營功能。')+`<div class="notice">球隊玩家只能管理自己的球隊；GM 只管理獨立的 GM 模擬聯盟。未設定的帳號不會使用假登入。</div><div class="formline"><label>帳號</label><input id="loginUser" autocomplete="username" placeholder="brothers / GM"/><label>密碼</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="登入密碼"/><button class="btn accent" data-login="1">登入</button></div><p>登入後可管理所屬球隊的一、二軍、對戰打序、FA 與財務。正式中職聯盟仍保持暫停。</p>`;return;}
  }
  render(){const s=this.state;const a=TEAMS.find(t=>t.id===s.visitor)||TEAMS[0],b=TEAMS.find(t=>t.id===s.home)||TEAMS[1],role=currentRole(s);
  $('scoreboard').innerHTML=`<div class="teamscore"><i class="team-color" style="height:20px;width:5px;background:${a.color}"></i>${a.short} <b>${s.score[0]}</b></div><div class="innings"><strong>${s.inning}局${s.half==='top'?'上 ▲':'下 ▼'}</strong><small>${s.outs} OUT · ${s.balls}B ${s.strikes}S</small></div><div class="teamscore"><b>${s.score[1]}</b> ${b.short}<i class="team-color" style="height:20px;width:5px;background:${b.color}"></i></div>`;
