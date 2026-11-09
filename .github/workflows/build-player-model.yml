@@ -5,6 +5,7 @@ on:
     paths:
       - 'scripts/blender/build_player.py'
       - 'scripts/blender/build_stadium.py'
+      - 'scripts/blender/render_preview.py'
       - '.github/workflows/build-player-model.yml'
 permissions:
   contents: write
@@ -29,6 +30,24 @@ jobs:
         run: |
           blender --background --factory-startup --python-exit-code 1 --python scripts/blender/build_player.py
           blender --background --factory-startup --python-exit-code 1 --python scripts/blender/build_stadium.py
+      - name: Render visual QA images in Blender
+        env:
+          PYTHONPATH: /usr/lib/python3/dist-packages
+        run: blender --background --factory-startup --python-exit-code 1 --python scripts/blender/render_preview.py
+      - name: Verify visual review plates
+        run: |
+          test -s assets/previews/player-review.png
+          test -s assets/previews/stadium-review.png
+          python3 - <<'PY'
+          import struct
+          for name in ('player-review.png','stadium-review.png'):
+            path='assets/previews/'+name
+            with open(path,'rb') as f: header=f.read(24)
+            assert header[:8]==b'\x89PNG\r\n\x1a\n'
+            width,height=struct.unpack_from('>II',header,16)
+            assert width>=900 and height>=850
+            print('VISUAL QA preview:',path,width,height)
+          PY
       - name: Validate exported asset
         run: |
           test -s assets/models/player_base.glb
@@ -46,7 +65,7 @@ jobs:
         run: |
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git config user.name 'github-actions[bot]'
-          git add assets/models/player_base.glb assets/models/stadium_base.glb
+          git add assets/models/player_base.glb assets/models/stadium_base.glb assets/previews/player-review.png assets/previews/stadium-review.png
           if ! git diff --cached --quiet; then
             git commit -m "assets: export baseball player GLB with Blender"
             git push
