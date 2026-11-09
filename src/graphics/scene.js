@@ -7,12 +7,15 @@ import {currentRole,isOffense} from '../core/rules.js';
 const VERT=`#version 300 es
 in vec3 aPosition;
 in vec3 aColor;
+in vec3 aNormal;
 uniform mat4 uVP;
 uniform vec3 uActorOffset;
 uniform float uActorScale;
 out vec3 vColor;
 out vec3 vWorld;
+out vec3 vNormal;
 void main(){
+ vNormal=aNormal;
  vColor=aColor;
  vWorld=aPosition*uActorScale+uActorOffset;
  gl_Position=uVP*vec4(vWorld,1.0);
@@ -22,19 +25,23 @@ const FRAG=`#version 300 es
 precision highp float;
 in vec3 vColor;
 in vec3 vWorld;
+in vec3 vNormal;
 out vec4 fragColor;
 void main(){
  vec3 dx=dFdx(vWorld),dy=dFdy(vWorld);
- vec3 n=normalize(cross(dx,dy));
+ vec3 faceted=normalize(cross(dx,dy));
+ vec3 n=length(vNormal)>.50?normalize(vNormal):faceted;
+ if(dot(n,faceted)<0.0)n=-n;
  vec3 lightDir=normalize(vec3(-.55,.92,.40));
- float lambert=.43+.57*abs(dot(n,lightDir));
+ float lambert=.36+.64*max(dot(n,lightDir),0.0);
+ float specular=pow(max(dot(reflect(-lightDir,n),normalize(vec3(.2,.7,1.0))),0.0),35.0)*.06;
  float heightBounce=clamp(vWorld.y*.015,0.0,.12);
  vec3 material=pow(vColor,vec3(.96));
  float noise=fract(sin(dot(floor(vWorld.xz*5.0),vec2(12.9898,78.233)))*43758.5453);
  float isGrass=step(vColor.r*1.7,vColor.g)*step(vColor.b*1.15,vColor.g)*step(vWorld.y,.11);
  float isDirt=step(vColor.g*1.22,vColor.r)*step(vColor.b*1.65,vColor.r)*step(vWorld.y,.16);
  material*=1.0+(noise-.5)*(.21*isGrass+.095*isDirt);
- vec3 shaded=material*(lambert+heightBounce)+vec3(.035,.04,.042);
+ vec3 shaded=material*(lambert+heightBounce)+vec3(.035,.04,.042)+vec3(specular);
  float fog=clamp((length(vWorld.xz)-115.0)/260.0,0.0,.22);
  shaded=mix(shaded,vec3(.48,.64,.72),fog);
  fragColor=vec4(clamp(shaded,0.0,1.0),1.0);
@@ -164,7 +171,7 @@ export function buildStatic(){
  return b;
 }
 export class StadiumScene{
- constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.actorOffset=gl.getUniformLocation(prog,'uActorOffset');this.actorScale=gl.getUniformLocation(prog,'uActorScale');this.staticMesh=buildStatic();this.staticGpu=this.uploadMesh(this.staticMesh,gl.STATIC_DRAW);this.loadStadiumGlb();this.cameraYaw=0;this.setupAvatars();}
+ constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.aNorm=gl.getAttribLocation(prog,'aNormal');this.vp=gl.getUniformLocation(prog,'uVP');this.actorOffset=gl.getUniformLocation(prog,'uActorOffset');this.actorScale=gl.getUniformLocation(prog,'uActorScale');this.staticMesh=buildStatic();this.staticGpu=this.uploadMesh(this.staticMesh,gl.STATIC_DRAW);this.loadStadiumGlb();this.cameraYaw=0;this.setupAvatars();}
  async loadStadiumGlb(){
   try{
    const asset=await loadGlbGeometry(new URL('../../assets/models/stadium_base.glb',import.meta.url));
@@ -172,20 +179,26 @@ export class StadiumScene{
    const mesh=new MeshBuffer();
    appendGlbActor(mesh,asset,0,0,[1,1,1],1);
    if(!mesh.p.length||mesh.p.length!==mesh.c.length)throw Error('Invalid stadium triangles');
-   const replacement=this.uploadMesh(mesh,this.gl.STATIC_DRAW);
+   const replacement=this.uploadMesh(mesh,this.gl.STATIC_DRAW,asset.normals);
    const previous=this.staticGpu;
    this.staticGpu=replacement;
    this.staticMesh=mesh;
    this.gl.deleteBuffer(previous.positions);
    this.gl.deleteBuffer(previous.colors);
+   if(previous.normals)this.gl.deleteBuffer(previous.normals);
    this.stadiumAssetSource='blender_glb';
   }catch(err){this.stadiumAssetSource='procedural_fallback';}
  }
- uploadMesh(mesh,usage){
+ uploadMesh(mesh,usage,normals=null){
   const gl=this.gl,positions=gl.createBuffer(),colors=gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER,positions);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.p),usage);
   gl.bindBuffer(gl.ARRAY_BUFFER,colors);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.c),usage);
-  return {positions,colors,count:mesh.p.length/3};
+  let normalBuffer=null;
+  if(normals&&normals.length===mesh.p.length){
+   normalBuffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffer);
+   gl.bufferData(gl.ARRAY_BUFFER,normals,usage);
+  }
+  return {positions,colors,normals:normalBuffer,count:mesh.p.length/3};
  }
  drawMesh(buffers,offset=[0,0,0],scale=1){
   const gl=this.gl;
@@ -195,6 +208,12 @@ export class StadiumScene{
   gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aPos);
   gl.bindBuffer(gl.ARRAY_BUFFER,buffers.colors);
   gl.vertexAttribPointer(this.aCol,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aCol);
+  if(buffers.normals){
+   gl.bindBuffer(gl.ARRAY_BUFFER,buffers.normals);gl.enableVertexAttribArray(this.aNorm);
+   gl.vertexAttribPointer(this.aNorm,3,gl.FLOAT,false,0,0);
+  }else{
+   gl.disableVertexAttribArray(this.aNorm);gl.vertexAttrib3f(this.aNorm,0,0,0);
+  }
   gl.drawArrays(gl.TRIANGLES,0,buffers.count);
  }
  renderRemote(data,teamId,now){
@@ -211,7 +230,7 @@ export class StadiumScene{
     for(const team of TEAMS){
      const actor=new MeshBuffer();
      appendGlbActor(actor,asset,0,0,rgb(team.color),1);
-     this.playerGpuByTeam.set(team.id,this.uploadMesh(actor,this.gl.STATIC_DRAW));
+     this.playerGpuByTeam.set(team.id,this.uploadMesh(actor,this.gl.STATIC_DRAW,asset.normals));
     }
    }})
    .catch(()=>{this.glbLoadState='fallback';});
@@ -320,7 +339,7 @@ export class StadiumScene{
  }
  const dynamic=this.uploadMesh(b,gl.STREAM_DRAW);
  this.drawMesh(dynamic);
- gl.deleteBuffer(dynamic.positions);gl.deleteBuffer(dynamic.colors);
+ gl.deleteBuffer(dynamic.positions);gl.deleteBuffer(dynamic.colors);if(dynamic.normals)gl.deleteBuffer(dynamic.normals);
  }
  renderSoftware(b,m,w,h,now){
   if(this.lastSoftware&&now-this.lastSoftware<90)return;
