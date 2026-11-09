@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'scripts/blender/build_player.py'
+      - 'scripts/blender/build_stadium.py'
       - '.github/workflows/build-player-model.yml'
 permissions:
   contents: write
@@ -19,25 +20,28 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y blender
-      - name: Author and export GLB using Blender
-        run: blender --background --factory-startup --python scripts/blender/build_player.py
+      - name: Author and export player and stadium GLB using Blender
+        run: |
+          blender --background --factory-startup --python scripts/blender/build_player.py
+          blender --background --factory-startup --python scripts/blender/build_stadium.py
       - name: Validate exported asset
         run: |
           test -s assets/models/player_base.glb
+          test -s assets/models/stadium_base.glb
           python3 - <<'PY'
           import struct
-          path='assets/models/player_base.glb'
-          with open(path,'rb') as f: head=f.read(12)
-          assert head[:4]==b'glTF', 'Invalid GLB magic'
-          assert struct.unpack_from('<I',head,4)[0]==2
-          assert struct.unpack_from('<I',head,8)[0]>1024
-          print('GLB valid:',path)
+          for path in ('assets/models/player_base.glb','assets/models/stadium_base.glb'):
+            with open(path,'rb') as f: head=f.read(12)
+            assert head[:4]==b'glTF', 'Invalid GLB magic'
+            assert struct.unpack_from('<I',head,4)[0]==2
+            assert struct.unpack_from('<I',head,8)[0]>1024
+            print('GLB valid:',path)
           PY
       - name: Commit finished binary model back to the project
         run: |
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git config user.name 'github-actions[bot]'
-          git add assets/models/player_base.glb
+          git add assets/models/player_base.glb assets/models/stadium_base.glb
           if ! git diff --cached --quiet; then
             git commit -m "assets: export baseball player GLB with Blender"
             git push
