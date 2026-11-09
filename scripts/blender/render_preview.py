@@ -41,6 +41,9 @@ def setup(res_x=1200,res_y=900):
  scene=bpy.context.scene
  scene.render.engine='CYCLES'
  scene.cycles.samples=28
+ scene.render.threads_mode='FIXED'
+ scene.render.threads=4
+ bpy.context.view_layer.cycles.use_denoising=False
  scene.render.resolution_x=res_x
  scene.render.resolution_y=res_y
  scene.render.resolution_percentage=100
