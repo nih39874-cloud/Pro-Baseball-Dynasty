@@ -48,7 +48,7 @@ export class GameEngine{
  if(s.mode==='field'&&!isOffense(s)){s.fieldChoice={timeLeft:5,candidates:sorted.slice(0,Math.min(3,sorted.length))};s.phase='fielderChoice';this.log('選擇守備員，左搖桿移動追球；球下方光圈標示落點');}
  this.onUpdate();
  }
- chooseFielder(key){const s=this.s;if(!s.fieldChoice)return;const f=s.fieldChoice.candidates.find(f=>f.key===key)||s.fieldChoice.candidates[0];s.selectedFielder=f;s.fielderPos={x:f.pos[0],z:f.pos[1]};s.fieldChoice=null;s.phase='fielding';this.log(`${f.label}接手守備`);this.onUpdate();}
+ chooseFielder(key){const s=this.s;if(!s.fieldChoice)return;const f=s.fieldChoice.candidates.find(f=>f.key===key)||s.fieldChoice.candidates[0];s.selectedFielder=f;s.fielderPos={x:f.pos[0],z:f.pos[1]};s.fieldChoice=null;s.phase='fielding';s.phaseTime=0;this.log(`${f.label}接手守備，左搖桿前往落點`);this.onUpdate();}
  catchBall(){const s=this.s;if(s.phase!=='fielding')return;const f=s.fielderPos||s.selectedFielder?.pos;if(!f)return;const d=Math.hypot(s.ball.x-f.x,s.ball.z-f.z);if(d<3.4&&s.ball.y<3.5){s.ballOutcome='out';this.endPlay('手動接球成功！',0);}else this.log('請移動到球的正下方，距離 '+d.toFixed(1)+' 公尺');}
  throwTo(base){const s=this.s;if(s.phase!=='fielding')return;s.throwTo=base;this.log(`野手傳向${{1:'一壘',2:'二壘',3:'三壘',4:'本壘'}[base]||'內野'}`);}
  resolveField(){const s=this.s;const l=s.landing,sel=s.selectedFielder,dist=Math.hypot(l.x-(s.fielderPos?.x??sel?.pos[0]??0),l.z-(s.fielderPos?.z??sel?.pos[1]??0));
