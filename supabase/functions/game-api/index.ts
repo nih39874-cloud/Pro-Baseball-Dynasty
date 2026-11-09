@@ -68,7 +68,7 @@ Deno.serve(async (req: Request) => {
       need(allowedTeam,'TEAM_NOT_ALLOWED');
       const [teamPlayers,configs,history]=await Promise.all([
         db.from('league_players')
-          .select('master_player_id,team_id,roster_status,promotion_available_at,roster_changed_at,batting_rating,pitching_rating,fielding_rating,players_master(full_name,primary_position,bats,throws,source_year,draft_year)')
+          .select('master_player_id,team_id,roster_status,promotion_available_at,roster_changed_at,players_master(full_name,primary_position,bats,throws,source_year,draft_year)')
           .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(200),
         db.from('coach_lineups')
           .select('team_id,opponent_team_id,batting_order,defense,is_custom,needs_review,saved_at')
@@ -128,7 +128,7 @@ Deno.serve(async (req: Request) => {
     if (action === 'roster') {
       need(allowedTeam, 'TEAM_NOT_ALLOWED');
       const [players,rosters,offers] = await Promise.all([
-        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,promotion_available_at,fa_service_initial_estimate,fa_initial_eligible_reported,fa_2024_service_reported,fa_usage_min_seasons,fa_qualification_threshold,fa_qualify_note,batting_rating,pitching_rating,fielding_rating,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence,official_cpbl_id,bats,throws,birth_date)')
+        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,promotion_available_at,fa_service_initial_estimate,fa_initial_eligible_reported,fa_2024_service_reported,fa_usage_min_seasons,fa_qualification_threshold,fa_qualify_note,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence,official_cpbl_id,bats,throws,birth_date)')
           .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(250),
         db.from('roster_submissions').select('kind,player_ids,locked,auto_selected,submitted_at')
           .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam),
