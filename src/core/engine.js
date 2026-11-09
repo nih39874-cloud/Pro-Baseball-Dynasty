@@ -40,23 +40,23 @@ export class GameEngine{
  const angle=sw.bunt?rand(3,9):rand(8,55)*(quality>.78?1.16:1),heading=rand(-.95,.95)+(sw.aim.x*.10);
  const speed=(13+quality*35)*power; const vz=-Math.cos(heading)*speed*.80,vx=Math.sin(heading)*speed*.80;
  const vy=2+speed*Math.sin(angle*Math.PI/180)*.57;
- s.ball={x:0,y:.95,z:-.2,vx,vy,vz,visible:true,trail:true};s.phase='fielding';s.phaseTime=0;s.fieldChoice=null;s.selectedFielder=null;s.fielderPos=null;s.swing=null;
+ s.ball={x:0,y:.95,z:-.2,vx,vy,vz,visible:true,trail:true};s.phase='fielding';s.phaseTime=0;s.fieldChoice=null;s.selectedFielder=null;s.fielderPos=null;s.fieldMove={x:0,y:0};s.swing=null;
  const flight=Math.max(.65,2*vy/13.3);let land={x:vx*flight,y:0,z:-.2+vz*flight};
  const sorted=FIELDERS.filter(f=>!['C','P'].includes(f.key)||Math.hypot(land.x,land.z-f.pos[1])<36).map(f=>({...f,dist:Math.hypot(land.x-f.pos[0],land.z-f.pos[1])})).sort((a,b)=>a.dist-b.dist);
- s.landing=land;s.fieldCandidates=sorted.slice(0,2);s.selectedFielder=sorted[0];s.fielderPos={0:0,x:sorted[0].pos[0],z:sorted[0].pos[1]};s.ballFlight=flight;s.hitQuality=quality;s.ballOutcome=null;
+ s.landing=land;s.fieldCandidates=sorted.slice(0,2);s.selectedFielder=sorted[0];s.fielderPos={x:sorted[0].pos[0],z:sorted[0].pos[1]};s.ballFlight=flight;s.hitQuality=quality;s.ballOutcome=null;
  this.log(`擊出球！預估落點：${land.x<0?'左':'右'}側外野方向`);
- if(s.mode==='field'&&!isOffense(s)&&sorted[1]&&Math.abs(sorted[1].dist-sorted[0].dist)<10){s.fieldChoice={timeLeft:5,candidates:sorted.slice(0,2)};s.phase='fielderChoice';this.log('兩名守備員皆有接球機會，請在 5 秒內選擇');}
+ if(s.mode==='field'&&!isOffense(s)){s.fieldChoice={timeLeft:5,candidates:sorted.slice(0,Math.min(3,sorted.length))};s.phase='fielderChoice';this.log('選擇守備員，左搖桿移動追球；球下方光圈標示落點');}
  this.onUpdate();
  }
  chooseFielder(key){const s=this.s;if(!s.fieldChoice)return;const f=s.fieldChoice.candidates.find(f=>f.key===key)||s.fieldChoice.candidates[0];s.selectedFielder=f;s.fielderPos={x:f.pos[0],z:f.pos[1]};s.fieldChoice=null;s.phase='fielding';this.log(`${f.label}接手守備`);this.onUpdate();}
- catchBall(){const s=this.s;if(s.phase!=='fielding')return;const f=s.fielderPos||s.selectedFielder?.pos;if(!f)return;const d=Math.hypot(s.ball.x-f.x,s.ball.z-f.z);if(d<9){s.ballOutcome='out';this.endPlay('漂亮接殺！',0);}else this.log('距離太遠，無法接球');}
+ catchBall(){const s=this.s;if(s.phase!=='fielding')return;const f=s.fielderPos||s.selectedFielder?.pos;if(!f)return;const d=Math.hypot(s.ball.x-f.x,s.ball.z-f.z);if(d<3.4&&s.ball.y<3.5){s.ballOutcome='out';this.endPlay('手動接球成功！',0);}else this.log('請移動到球的正下方，距離 '+d.toFixed(1)+' 公尺');}
  throwTo(base){const s=this.s;if(s.phase!=='fielding')return;s.throwTo=base;this.log(`野手傳向${{1:'一壘',2:'二壘',3:'三壘',4:'本壘'}[base]||'內野'}`);}
  resolveField(){const s=this.s;const l=s.landing,sel=s.selectedFielder,dist=Math.hypot(l.x-(s.fielderPos?.x??sel?.pos[0]??0),l.z-(s.fielderPos?.z??sel?.pos[1]??0));
  let hit=0;const outfield=Math.hypot(l.x,l.z)>100; if(outfield&&s.hitQuality>.72){hit=4;this.endPlay('全壘打！球飛出全壘打牆！',hit);return;}
- const fly=s.ballFlight>1.1;const caught=s.ballOutcome==='out'||(dist<8&&Math.random()<(s.mode==='field'&&!isOffense(s)?.50:.79));
+ const fly=s.ballFlight>1.1;const manual=s.mode==='field'&&!isOffense(s);const caught=s.ballOutcome==='out'||(manual?dist<3.4:(dist<8&&Math.random()<.79));
  if(caught){this.endPlay(fly?'接殺出局！':'滾地球傳一壘封殺！',0);}else{hit=(Math.hypot(l.x,l.z)>68||s.hitQuality>.74)?2:1;this.endPlay(hit===2?'二壘安打！':'安打上壘！',hit);}
  }
- endPlay(message,hits){const s=this.s;s.ball=null;s.fieldChoice=null;s.ballOutcome=null;if(hits>0){const r=runBases(s,hits);this.log(message+(r?`，帶有 ${r} 分打點`:''));s.balls=0;s.strikes=0;s.atBat++;this.applyPending();}else{this.log(message);addOut(s);this.applyPending();}s.phase='ready';s.phaseTime=0;s.selectedFielder=null;s.fielderPos=null;if(s.inning>9&&s.half==='top'&&s.score[0]!==s.score[1]){s.finished=true;s.phase='finished';this.log('比賽結束！');}this.onUpdate();}
+ endPlay(message,hits){const s=this.s;s.ball=null;s.fieldChoice=null;s.ballOutcome=null;s.fieldMove={x:0,y:0};if(hits>0){const r=runBases(s,hits);this.log(message+(r?`，帶有 ${r} 分打點`:''));s.balls=0;s.strikes=0;s.atBat++;this.applyPending();}else{this.log(message);addOut(s);this.applyPending();}s.phase='ready';s.phaseTime=0;s.selectedFielder=null;s.fielderPos=null;if(s.inning>9&&s.half==='top'&&s.score[0]!==s.score[1]){s.finished=true;s.phase='finished';this.log('比賽結束！');}this.onUpdate();}
  fastForwardAtBat(){if(this.s.phase==='finished')return;const s=this.s;s.phase='ready';s.call=null;s.ball=null;s.fieldChoice=null;const r=Math.random();if(r<.50){addOut(s);this.log('AI 模擬：出局');}else if(r<.62){const x=addPitchCall(s,false);this.log('AI 模擬：'+x);}else if(r<.89){runBases(s,1);s.balls=0;s.strikes=0;s.atBat++;this.log('AI 模擬：一壘安打');}else{runBases(s,2);s.balls=0;s.strikes=0;s.atBat++;this.log('AI 模擬：二壘安打');}this.applyPending();this.onUpdate();}
  advanceGame(){for(let i=0;i<320&&!this.s.finished;i++)this.fastForwardAtBat();if(!this.s.finished){this.s.finished=true;this.s.phase='finished'}this.log('模擬完成');}
  resetGame(a='brothers',b='dragons'){const s=this.s;Object.assign(s,{visitor:a,home:b,team:a,mode:'auto',pendingMode:null,inning:1,half:'top',outs:0,balls:0,strikes:0,bases:[false,false,false],score:[0,0],pitchNumber:0,atBat:1,phase:'ready',phaseTime:0,ball:null,call:null,review:null,fieldChoice:null,selectedFielder:null,finished:false,stamina:100,challenge:{abs:2,replay:2},events:['比賽開始：'+a+' vs '+b]});this.onUpdate();}
@@ -65,7 +65,7 @@ export class GameEngine{
  adminFunds(id,amount){updateFunds(this.s,id,amount);this.log('GM 資金調整成功');this.onUpdate();}
  update(dt){const s=this.s;dt=Math.min(.05,dt);if(s.finished)return;s.phaseTime+=dt;
  if(s.phase==='meter'){this.meterPhase+=dt*this.meterSpeed;return;}
- if(s.phase==='fielderChoice'){s.fieldChoice.timeLeft-=dt;if(s.fieldChoice.timeLeft<=0)this.chooseFielder(s.fieldChoice.candidates[0].key);return;}
+ if(s.phase==='fielderChoice'){s.fieldChoice.timeLeft-=dt;if(s.fieldChoice.timeLeft<=0){this.chooseFielder(s.fieldChoice.candidates[0].key);this.log('未選擇野手，已自動接管最近野手');}return;}
  if(s.phase==='abs'){if(s.phaseTime>=3.9){this.finishCalled(true);s.review=null;}return;}
  if(s.phase==='called'){s.call.timeLeft-=dt;if(s.call.timeLeft<=0)this.finishCalled();return;}
  if(s.phase==='ready'){
@@ -79,8 +79,8 @@ export class GameEngine{
   if(t>=1.00){this.finishPitch();}return;
  }
  if(s.phase==='fielding'){
-  const b=s.ball;if(!b)return;const t=s.phaseTime,flight=s.ballFlight;b.x=b.vx*t;b.z=-.2+b.vz*t;b.y=Math.max(.12,.95+b.vy*t-6.65*t*t);
-  if(s.selectedFielder){const manual=s.mode==='field'&&!isOffense(s);if(!manual){const dest=s.landing;const dx=dest.x-s.fielderPos.x,dz=dest.z-s.fielderPos.z,l=Math.hypot(dx,dz)||1;s.fielderPos.x+=dx/l*Math.min(l,dt*21);s.fielderPos.z+=dz/l*Math.min(l,dt*21);}else{const v=s.fieldMove;s.fielderPos.x+=v.x*dt*15;s.fielderPos.z+=v.y*dt*15;}}
+  const b=s.ball;if(!b)return;const manual=s.mode==='field'&&!isOffense(s);const t=manual?s.phaseTime*.64:s.phaseTime,flight=s.ballFlight;b.x=b.vx*t;b.z=-.2+b.vz*t;b.y=Math.max(.12,.95+b.vy*t-6.65*t*t);
+  if(s.selectedFielder){if(!manual){const dest=s.landing;const dx=dest.x-s.fielderPos.x,dz=dest.z-s.fielderPos.z,l=Math.hypot(dx,dz)||1;s.fielderPos.x+=dx/l*Math.min(l,dt*21);s.fielderPos.z+=dz/l*Math.min(l,dt*21);}else{const v=s.fieldMove||{x:0,y:0};s.fielderPos.x=clamp(s.fielderPos.x+v.x*dt*23,-125,125);s.fielderPos.z=clamp(s.fielderPos.z+v.y*dt*23,-123,15);}}
   if(t>=Math.max(.7,s.ballFlight))this.resolveField();
  }
  }
