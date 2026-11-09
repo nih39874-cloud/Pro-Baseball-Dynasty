@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
       team_id: isGM ? 'dragons' : member.team_id, sandbox: isGM, active_timeline_id: league.active_timeline_id };
 
     if (action === 'status') {
-      const [fin, games, recent, champs] = await Promise.all([
+      const [fin, games, recent, champs, clubPlayers] = await Promise.all([
         db.from('team_finances').select('team_id,cash_ntd,debt_ntd').eq('league_id', league.id).order('team_id'),
         db.from('games').select('id,season_year,home_team_id,away_team_id,scheduled_at,phase,home_score,away_score,season_stage,version')
           .eq('league_id', league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year)
@@ -58,11 +58,13 @@ Deno.serve(async (req: Request) => {
         db.from('games').select('id,home_team_id,away_team_id,scheduled_at,home_score,away_score,phase,season_stage')
           .eq('league_id', league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year)
           .eq('phase','final').order('scheduled_at',{ascending:false}).limit(12),
-        db.from('league_champions').select('season_year,team_id').eq('league_id',league.id).order('season_year',{ascending:false}).limit(10)
+        db.from('league_champions').select('season_year,team_id').eq('league_id',league.id).order('season_year',{ascending:false}).limit(10),
+        db.from('league_players').select('roster_status').eq('league_id',league.id).eq('team_id',pickTeam)
       ]);
-      if (fin.error || games.error || recent.error || champs.error) return fail(req, 'DATABASE_READ_FAILED', 503);
+      if (fin.error || games.error || recent.error || champs.error || clubPlayers.error) return fail(req, 'DATABASE_READ_FAILED', 503);
       return json(req, { ok: true, ...responseBase, finances: fin.data, upcoming: games.data,
-        recent: recent.data, champions: champs.data });
+        recent: recent.data, champions: champs.data,
+        roster_summary:{total:(clubPlayers.data||[]).length,active:(clubPlayers.data||[]).filter(p=>p.roster_status==='active').length,reserve:(clubPlayers.data||[]).filter(p=>p.roster_status==='reserve').length} });
     }
     if (action === 'gm-observe') {
       if (!isGM) return fail(req,'GM_ONLY',403);
@@ -201,18 +203,19 @@ Deno.serve(async (req: Request) => {
       ]);
       if (players.error || rosters.error || offers.error || opening.error || champ.error || started.error) return fail(req,'ROSTER_READ_FAILED',503);
       const ids=(players.data||[]).map(p=>p.master_player_id);
-      let stats=[],visual=[];
+      let stats=[],visual=[],salaryInfo=[];
       if(ids.length){
-        const [st,vi]=await Promise.all([
+        const [st,vi,sa]=await Promise.all([
           db.from('cpbl_season_reference').select('master_player_id,league_level,team_id,batting,pitching').eq('season_year',2024).in('master_player_id',ids).limit(600),
-          db.from('player_visual_profiles').select('master_player_id,model_status').in('master_player_id',ids).limit(250)
+          db.from('player_visual_profiles').select('master_player_id,model_status').in('master_player_id',ids).limit(250),
+          db.from('player_salary_reference_2024').select('master_player_id,monthly_salary_ntd,evidence_type,source_url').in('master_player_id',ids).limit(250)
         ]);
-        if(st.error||vi.error)return fail(req,'PLAYER_SOURCE_READ_FAILED',503);
-        stats=st.data||[];visual=vi.data||[];
+        if(st.error||vi.error||sa.error)return fail(req,'PLAYER_SOURCE_READ_FAILED',503);
+        stats=st.data||[];visual=vi.data||[];salaryInfo=sa.data||[];
       }
-      const byId=new Map(),byVisual=new Map(visual.map(x=>[x.master_player_id,x.model_status]));
+      const byId=new Map(),byVisual=new Map(visual.map(x=>[x.master_player_id,x.model_status])),bySalary=new Map(salaryInfo.map(x=>[x.master_player_id,x]));
       for(const item of stats){const list=byId.get(item.master_player_id)||[];list.push(item);byId.set(item.master_player_id,list);}
-      const enriched=(players.data||[]).map(p=>({...p,reference_stats:byId.get(p.master_player_id)||[],visual_status:byVisual.get(p.master_player_id)||'missing'}));
+      const enriched=(players.data||[]).map(p=>({...p,reference_stats:byId.get(p.master_player_id)||[],salary_reference:bySalary.get(p.master_player_id)||null,visual_status:byVisual.get(p.master_player_id)||'missing'}));
       return json(req,{ok:true,...responseBase,team_id:pickTeam,players:enriched,rosters:rosters.data,opening_roster:opening.data,season_finished:(champ.data||[]).length>0,season_started:(started.data||[]).length>0,offers:offers.data});
     }
     if (action === 'free-agents') {
