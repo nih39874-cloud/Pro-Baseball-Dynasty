@@ -1,4 +1,9 @@
-const CACHE='diamond-dynasty-v22';const FILES=['./','./index.html','./style.css','./manifest.webmanifest','./assets/icon.svg','./src/main.js','./src/config.js','./src/core/state.js','./src/core/rules.js','./src/core/engine.js','./src/core/local-manager.js','./src/graphics/scene.js','./src/graphics/mesh.js','./src/graphics/avatar.js','./src/graphics/glb-geometry.js','./src/graphics/live-replay.js','./src/ui/player-summary.js','./src/ui/coach-setup.js','./src/ui/coach-setup.css','./assets/player-avatar-catalog.json','./src/controls/joystick.js','./src/ui/view.js','./src/ui/local-management.js','./src/ui/live-view.js','./src/ui/live-motion-panel.css','./src/ui/live-motion.js','./src/ui/live-motion-panel.js','./src/ui/live-stage.css','./src/ui/live-manual.css','./src/backend/live.js','./src/platform/pwa.js','./src/backend/auth.js'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting())));
-self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{if(r.ok){const clone=r.clone();caches.open(CACHE).then(x=>x.put(e.request,clone))}return r})));});
+const CACHE='diamond-dynasty-portrait-v1';
+const FILES=['./index.html','./manifest.webmanifest','./assets/icon.svg','./src/ui/dynasty-app.js','./src/ui/dynasty.css','./src/backend/auth.js','./src/config.js'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{const req=event.request,url=new URL(req.url);if(req.method!=='GET'||url.origin!==location.origin)return;
+ const isNavigation=req.mode==='navigate';
+ event.respondWith(isNavigation?fetch(req).then(res=>{if(res.ok)caches.open(CACHE).then(c=>c.put(req,res.clone()));return res}).catch(()=>caches.match(req).then(c=>c||caches.match('./index.html'))):
+ caches.match(req).then(cached=>cached||fetch(req).then(res=>{if(res.ok)caches.open(CACHE).then(c=>c.put(req,res.clone()));return res})));
+});
