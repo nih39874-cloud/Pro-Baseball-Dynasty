@@ -412,3 +412,7 @@ input::placeholder{color:#7c94aa}
 .trade-decision{display:flex;gap:4px}.trade-decision button{padding:6px 7px;border-radius:7px;border:1px solid #607d90;background:#315269;color:#fff;font-size:10px}
 .trade-decision button:first-child{background:#347c55;border-color:#589f76}
 @media(max-height:740px){.trade-form{padding:8px}.trade-form select{padding:5px}.trade-form button{padding:6px}.trade-offer-row{padding:7px}}
+
+.scout-mini{background:#294a40;border:1px solid #5f9a78;color:#d0f7dd;font-size:11px;padding:7px 8px;flex-shrink:0}
+.market-rows .list-row{gap:5px}.market-rows .list-row>.mini{font-size:11px;white-space:nowrap}
+@media(max-width:390px){.market-rows .list-row{padding:6px 5px}.market-rows .position{width:28px;font-size:9px}.market-rows .list-row>.mini{padding:5px}}
