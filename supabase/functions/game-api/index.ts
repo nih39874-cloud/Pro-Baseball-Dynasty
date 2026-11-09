@@ -100,6 +100,18 @@ Deno.serve(async (req: Request) => {
       });
       return json(req,{ok:true,year:official.current_year,phase:official.season_phase,clock_enabled:official.clock_enabled,teams});
     }
+    if (action === 'gm-diagnostics') {
+      if(!isGM)return fail(req,'GM_ONLY',403);
+      const {data,error}=await db.rpc('server_gm_diagnostics',{p_actor:user.id});
+      return error?fail(req,error.message,409):json(req,{ok:true,report:data});
+    }
+    if (action === 'gm-simulate') {
+      if(!isGM)return fail(req,'GM_ONLY',403);
+      const count=Number(body.count||1);
+      need(Number.isSafeInteger(count)&&count>=1&&count<=30,'INVALID_GAME_COUNT');
+      const {data,error}=await db.rpc('server_gm_simulate_games',{p_actor:user.id,p_count:count});
+      return error?fail(req,error.message,409):json(req,{ok:true,simulation:data});
+    }
     if (action === 'gm-market') {
       if(!isGM)return fail(req,'GM_ONLY',403);
       const {data,error}=await db.from('league_players')
