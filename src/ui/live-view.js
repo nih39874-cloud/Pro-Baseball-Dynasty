@@ -1,3 +1,4 @@
+import {renderMotionPanel} from './live-motion-panel.js';
 // Server-backed live coaching overlay. Deliberately distinguishes from local 3D practice mode.
 const ESC={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 export const safe=(value)=>String(value??'').replace(/[&<>"']/g,c=>ESC[c]);
@@ -32,7 +33,7 @@ export function renderAimPad({x=0,y=0,pendingPitch=null,batting=false}={}){
 }
 const PITCH_TYPES=[['four_seam','四縫線'],['two_seam','二縫線'],['slider','滑球'],['curve','曲球'],['changeup','變速'],['splitter','指叉'],['cutter','卡特'],['sinker','伸卡']];
 
-export function renderLivePanel({games=[],selection=null,gameData=null,teamId='',players=[],aim={x:0,y:0},meterRunning=false}={}){
+export function renderLivePanel({games=[],selection=null,gameData=null,teamId='',players=[],aim={x:0,y:0},meterRunning=false,fieldPos='CF',motion={dx:0,dz:0}}={}){
  const g=gameData?.game;
  const state=gameData?.session?.state;
  const controls=gameData?.controls||[];
@@ -66,6 +67,7 @@ export function renderLivePanel({games=[],selection=null,gameData=null,teamId=''
      (ps?.pending_pitch||ps?.review?'<p class="caption">等待打者回應或 ABS 審查。</p>':`<div class="formline"><label>球種</label><select id="livePitchType">${PITCH_TYPES.map(([id,label])=>`<option value="${id}">${label}</option>`).join('')}</select></div>
      <div class="live-meter-wrap"><div class="live-meter-track ${meterRunning?'running':''}"><div class="live-meter-safe"></div><div class="live-meter-needle"></div></div><button class="btn accent" data-live-pitch="1">${meterRunning?'按準出手':'啟動精準度跑條'}</button></div>`) }
   ${renderAbsAnimation(ps?.last_outcome)}</div>`:''}
+ ${isPlayer&&g.phase==='live'&&mine?renderMotionPanel({batting:playerBatting,fieldPos,motion,accepted:gameData?.own_motion}):''}
  <h3>最近打席</h3><div class="live-events">${(gameData?.events||[]).slice(-10).reverse().map(fmtEvent).join('')||'<p>等待比賽開始。</p>'}</div>
  `}
  <div class="modal-actions"><button class="btn" data-live-refresh>更新資訊</button><button class="btn" data-nav="dashboard">返回管理</button></div></section>`;
