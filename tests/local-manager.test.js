@@ -33,3 +33,17 @@ test('independent opponent lineups require DH, nonpitcher defenders, distinct va
  assert.equal(m.getLineup('a','b').needsReview,true);
  assert.equal(m.getLineup('a','c').needsReview,true);
 });
+
+test('training finance tracks budgets, declines insufficient funds and persists ledger',()=>{
+ const mem={value:null,getItem(){return this.value},setItem(_,v){this.value=v}};
+ const m=new LocalManager(roster,ids,mem);
+ const practice={funds:{a:500000000}};
+ const res=m.investTraining('a','pitching',1500000,practice,1750000000000);
+ assert.equal(res.balance,498500000);
+ assert.equal(m.team('a').training.length,1);
+ assert.throws(()=>m.investTraining('a','fielding',1000,practice),/10 萬/);
+ assert.throws(()=>m.investTraining('a','batting',11000000,practice),/1,000 萬/);
+ practice.funds.a=200000;
+ assert.throws(()=>m.investTraining('a','batting',500000,practice),/資金不足/);
+ assert.equal(new LocalManager(roster,ids,mem).team('a').training[0].kind,'pitching');
+});
