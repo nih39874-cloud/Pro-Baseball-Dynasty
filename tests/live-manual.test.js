@@ -33,3 +33,10 @@ test('unresolved live pitch must never draw an exact landing location before bat
  assert.match(html,/球已出手/);
  assert.doesNotMatch(html,/left:NaN|top:NaN|live-pitch-dot/);
 });
+
+test('player HUD displays server-calculated pitch speed and stamina',()=>{
+ const html=renderLivePanel({games:[game],gameData:{game,session:{state},controls,
+ pitch_state:{balls:0,strikes:0,pending_pitch:{id:'masked',pitch_type:'four_seam',speed_kmh:145.3,stamina_percent:77.2}}},teamId:'dragons'});
+ assert.match(html,/145.3 km\/h/);
+ assert.match(html,/77%/);
+});

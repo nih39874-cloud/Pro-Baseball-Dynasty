@@ -59,6 +59,7 @@ export function renderLivePanel({games=[],selection=null,gameData=null,teamId=''
  <p class="caption">操作只在打席間生效；由伺服器確認是否有換人資格。被換下的投手不能重新上場。</p></div>`:''}
  ${isPlayer&&g.phase==='live'&&mine?`<div class="live-player-controls"><h3>${playerBatting?'打者手動・捕手方向視角':'投手手動・投手丘第一視角'}</h3>
   <div class="live-pitch-count">B ${Number(ps?.balls||0)} ／ S ${Number(ps?.strikes||0)} · 投球 ${Number(ps?.pitch_no||0)}　<span>ABS 剩餘 ${Number(c?.abs_remaining??2)} 次</span></div>
+  ${ps?.pending_pitch?.speed_kmh!=null?`<div class="live-pitch-count">球速：<b>${Number(ps.pending_pitch.speed_kmh).toFixed(1)} km/h</b> · 投手體力：${Math.round(Number(ps.pending_pitch.stamina_percent??100))}%（能力／疲勞自動計算）</div>`:''}
   ${renderAimPad({...aim,pendingPitch:ps?.pending_pitch,batting:playerBatting})}
   ${ps?.review?`<div class="notice">主審判 ${ps.review.called_strike?'好球':'壞球'}。ABS 申請剩餘 ${Math.max(0,Math.ceil((Date.parse(ps.review.until)-Date.now())/1000))} 秒</div><button class="btn accent" data-live-abs="1" ${Number(c?.abs_remaining||0)<1?'disabled':''}>提出 ABS 挑戰</button>`:''}
   ${playerBatting?(ps?.pending_pitch?`<div class="modal-actions"><button class="btn accent" data-live-bat="swing">揮棒</button><button class="btn" data-live-bat="take">選球・不揮棒</button></div>`:'<p class="caption">等待投手出球；左手預先瞄準，右手按下揮棒或選球。</p>'):

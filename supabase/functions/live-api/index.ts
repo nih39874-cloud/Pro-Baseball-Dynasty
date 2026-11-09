@@ -61,7 +61,8 @@ Deno.serve(async(req:Request)=>{
     // Keep unresolved pitch position and private umpire verdict on the server.
     // Realtime callbacks trigger a fresh authorized status read, never broadcast private coordinates.
     const publicPitch=ps?.pending_pitch?{id:ps.pending_pitch.id,
-      pitch_type:ps.pending_pitch.pitch_type,released_at:ps.pending_pitch.released_at}:null;
+      pitch_type:ps.pending_pitch.pitch_type,released_at:ps.pending_pitch.released_at,
+      speed_kmh:ps.pending_pitch.speed_kmh,stamina_percent:ps.pending_pitch.stamina_percent}:null;
     const review=ps?.review?{pitch_id:ps.review.pitch_id,until:ps.review.until,called_strike:ps.review.called_strike}:null;
     return reply(req,{ok:true,game,session:sess.data,controls:control.data||[],events:(events.data||[]).reverse(),
       pitch_state:ps?{balls:ps.balls,strikes:ps.strikes,pitch_no:ps.pitch_no,pending_pitch:publicPitch,review,
