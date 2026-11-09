@@ -12,12 +12,12 @@ const heads={apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'applicatio
 async function api(path,options={}){
  const r=await fetch(`${url}${path}`,{...options,headers:{...heads,...options.headers}});
  const data=await r.json().catch(()=>({}));
- if(!r.ok)throw Error(`${path.split('?')[0]}: ${data.msg||data.message||data.error||r.status}`);
+ if(!r.ok)throw Error(`${path.split('?')[0]}: ${data.msg||data.message||data.error||r.status}. If creating a user, check the Supabase Auth minimum password length; the supplied short team PINs may be rejected.`);
  return data;
 }
 for(const [username] of entries){
  const pwd=credentials[username];
- if(typeof pwd!=='string'||pwd.length<10)throw Error(`Missing or weak password for ${username} (minimum 10 characters)`);
+ if(typeof pwd!=='string'||pwd.length<4)throw Error(`Missing supplied password for ${username}`);
 }
 const leagues=await api('/rest/v1/leagues?select=id,kind');
 const byKind=Object.fromEntries(leagues.map(l=>[l.kind,l.id]));
