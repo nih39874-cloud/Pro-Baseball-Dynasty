@@ -5,3 +5,5 @@ Retry after fixing Supabase six-character minimum via login-compatible PIN mappi
 Run secret-backed login verification for all seven accounts.
 
 Reconcile existing Auth hashes to current private PINs and verify all seven.
+
+Run GM sandbox and six-team API smoke checks after layout redesign.
