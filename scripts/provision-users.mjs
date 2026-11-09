@@ -7,6 +7,7 @@ const url=process.env.SUPABASE_URL?.replace(/\/$/,''), key=process.env.SUPABASE_
 const raw=process.env.DIAMOND_ACCOUNT_PASSWORDS;
 if(!url||!key||!raw)throw Error('Missing provisioning environment secrets');
 const credentials=JSON.parse(raw);
+const authPassword=(username,pin)=>username==='GM'?pin:`DD${pin}`; // Supabase Auth requires at least 6 characters; UI still accepts 4-digit team PINs.
 const entries=[['GM',null,'gm','official'],['brothers','brothers','manager','official'],['dragons','dragons','manager','official'],['unilions','unilions','manager','official'],['guardians','guardians','manager','official'],['rakuten','rakuten','manager','official'],['TSG','TSG','manager','official']];
 // New sb_secret_ API keys authenticate through apikey, not a Bearer JWT.
 const heads={apikey:key,'Content-Type':'application/json'};
@@ -36,7 +37,7 @@ for(const [username,team,role,kind] of entries){
  const email=`${username.toLowerCase()}@accounts.diamond-dynasty.invalid`;
  let user=existing.find(u=>u.email?.toLowerCase()===email);
  if(!user){
-  const result=await api('/auth/v1/admin/users',{method:'POST',body:JSON.stringify({email,password:credentials[username],email_confirm:true,app_metadata:{game_account:username}})});
+  const result=await api('/auth/v1/admin/users',{method:'POST',body:JSON.stringify({email,password:authPassword(username,credentials[username]),email_confirm:true,app_metadata:{game_account:username}})});
   user=result.user||result;
   if(!user.id)throw Error(`Missing created user ID for ${username}`);
   existing.push(user);
