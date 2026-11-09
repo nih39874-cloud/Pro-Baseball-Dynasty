@@ -3,8 +3,30 @@ import {FIELDERS,TEAMS} from '../config.js';
 import {drawAvatar} from './avatar.js';
 import {LiveReplay} from './live-replay.js';
 import {currentRole,isOffense} from '../core/rules.js';
-const VERT=`attribute vec3 aPosition;attribute vec3 aColor;uniform mat4 uVP;varying vec3 vColor;void main(){vColor=aColor;gl_Position=uVP*vec4(aPosition,1.);}`;
-const FRAG=`precision mediump float;varying vec3 vColor;void main(){vec3 c=pow(vColor,vec3(.91));gl_FragColor=vec4(c,1.);}`;
+const VERT=`#version 300 es
+in vec3 aPosition;
+in vec3 aColor;
+uniform mat4 uVP;
+out vec3 vColor;
+out vec3 vWorld;
+void main(){vColor=aColor;vWorld=aPosition;gl_Position=uVP*vec4(aPosition,1.0);}
+`;
+const FRAG=`#version 300 es
+precision highp float;
+in vec3 vColor;
+in vec3 vWorld;
+out vec4 fragColor;
+void main(){
+ vec3 dx=dFdx(vWorld),dy=dFdy(vWorld);
+ vec3 n=normalize(cross(dx,dy));
+ vec3 lightDir=normalize(vec3(-.55,.92,.40));
+ float lambert=.43+.57*abs(dot(n,lightDir));
+ float heightBounce=clamp(vWorld.y*.015,0.0,.12);
+ vec3 material=pow(vColor,vec3(.96));
+ vec3 shaded=material*(lambert+heightBounce)+vec3(.025,.028,.032);
+ fragColor=vec4(clamp(shaded,0.0,1.0),1.0);
+}
+`;
 function shader(gl,type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
 function buildStatic(){const b=new MeshBuffer();
  b.box(0,-.22,-35,260,.20,255,[.065,.22,.16]);
