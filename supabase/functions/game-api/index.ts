@@ -128,18 +128,29 @@ Deno.serve(async (req: Request) => {
       ]);
       if(teamPlayers.error||configs.error||history.error)return fail(req,'COACH_CONFIG_READ_FAILED',503);
       const ids=(teamPlayers.data||[]).map(p=>p.master_player_id);
-      let positions=[];
+      let positions=[],statRows=[];
       if(ids.length){
-        const pos=await db.from('player_position_2024')
-          .select('master_player_id,league_level,position,games')
-          .in('master_player_id',ids).order('games',{ascending:false}).limit(550);
-        if(pos.error)return fail(req,'POSITION_DATA_READ_FAILED',503);
+        const [pos,stats]=await Promise.all([
+          db.from('player_position_2024')
+            .select('master_player_id,league_level,position,games')
+            .in('master_player_id',ids).order('games',{ascending:false}).limit(550),
+          db.from('cpbl_season_reference')
+            .select('master_player_id,league_level,batting,pitching')
+            .eq('season_year',2024).in('master_player_id',ids).limit(600)
+        ]);
+        if(pos.error||stats.error)return fail(req,'POSITION_OR_STATS_READ_FAILED',503);
         positions=pos.data||[];
+        statRows=stats.data||[];
       }
-      const byId=new Map();
+      const byId=new Map(),statById=new Map();
       for(const r of positions){const v=byId.get(r.master_player_id)||[];v.push(r);byId.set(r.master_player_id,v);}
+      for(const r of statRows){
+        const items=statById.get(r.master_player_id)||[];items.push(r);statById.set(r.master_player_id,items);
+      }
       return json(req,{ok:true,...responseBase,team_id:pickTeam,roster_limit:28,demotion_cooldown_seconds:14400,
-        players:(teamPlayers.data||[]).map(x=>({...x,fielding_positions:byId.get(x.master_player_id)||[]})),
+        stats_reference_year:2024,
+        players:(teamPlayers.data||[]).map(x=>({...x,fielding_positions:byId.get(x.master_player_id)||[],
+          reference_stats:statById.get(x.master_player_id)||[]})),
         lineups:configs.data||[],recent_moves:history.data||[]});
     }
     if (action === 'coach-default') {
