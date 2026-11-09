@@ -1,0 +1,29 @@
+name: Provision Diamond Dynasty game accounts
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    environment: account-provisioning
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check provisioning secrets
+        env:
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DIAMOND_ACCOUNT_PASSWORDS: ${{ secrets.DIAMOND_ACCOUNT_PASSWORDS }}
+        run: |
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ] || [ -z "$DIAMOND_ACCOUNT_PASSWORDS" ]; then
+            echo "::error::Set SUPABASE_SERVICE_ROLE_KEY and DIAMOND_ACCOUNT_PASSWORDS in the account-provisioning environment secrets."
+            exit 1
+          fi
+      - name: Create Auth users and memberships (no credentials in logs)
+        env:
+          SUPABASE_URL: https://imustiprnotlhryoappj.supabase.co
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DIAMOND_ACCOUNT_PASSWORDS: ${{ secrets.DIAMOND_ACCOUNT_PASSWORDS }}
+        run: node scripts/provision-users.mjs
