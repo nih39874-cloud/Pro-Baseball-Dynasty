@@ -181,3 +181,11 @@ GitHub Actions 工作流程 `.github/workflows/rebas-2024.yml` 會從原始 rele
 ### 完整版仍未完成
 
 目前這是離散的逐球事件輸入與伺服器計算，**尚未具有**逐影格球路物理、可見的真實球路即時軌跡、守備者與跑者完整 3D 操作、經多裝置實測的同步延遲補償及逐人寫實建模。實際玩家登入帳號尚未佈建，不能視作可公開對戰的正式版本。
+
+## 2026-11-09｜Blender 真正建模資產狀態
+
+- GitHub Actions 在 Ubuntu 執行 **Blender 4.0.2**，完成 `scripts/blender/build_player.py` 與 `scripts/blender/build_stadium.py` 的 GLB 匯出。
+- 已實際產出並提交 `assets/models/player_base.glb`、`assets/models/stadium_base.glb`，並由 `tests/real-blender-assets.test.js` 使用遊戲的 GLB 載入器驗證成功。
+- 網頁遊戲目前會優先使用這兩份模型檔，不再只有程式化網格。
+- **嚴格品質註記：這些是 Blender 製作的通用基底，不是寫實／掃描真人外貌，不含完整骨架動畫或紋理化 PBR 資產；尚未完成實機外觀評審。** 真實 CPBL 球員一人一臉、寫實球場與動作美術仍是未完成工作，不能標為已完成。
+- GitHub Actions 建模紀錄：https://github.com/nih39874-cloud/Pro-Baseball-Dynasty/actions/runs/42574242042
