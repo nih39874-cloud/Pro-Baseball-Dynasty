@@ -1,1 +1,3 @@
 Account provisioning requested for GM (8-digit PIN) and six teams (4-digit PIN). Credentials remain in GitHub Environment secrets.
+
+Retry after fixing Supabase six-character minimum via login-compatible PIN mapping.
