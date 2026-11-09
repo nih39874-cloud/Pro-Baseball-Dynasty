@@ -3,3 +3,5 @@ Account provisioning requested for GM (8-digit PIN) and six teams (4-digit PIN).
 Retry after fixing Supabase six-character minimum via login-compatible PIN mapping.
 
 Run secret-backed login verification for all seven accounts.
+
+Reconcile existing Auth hashes to current private PINs and verify all seven.
