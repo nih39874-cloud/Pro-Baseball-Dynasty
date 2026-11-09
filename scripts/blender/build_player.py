@@ -68,10 +68,47 @@ def cube(name, pos, dims, mat):
     o.modifiers.new("Weighted normals","WEIGHTED_NORMAL")
     return o
 
+def tailored_mesh(name,rings,mat,segments=32):
+    """Cross-section garment topology, not stacked ellipsoids."""
+    vertices=[];faces=[]
+    for z,wx,depth,back in rings:
+        for i in range(segments):
+            a=math.tau*i/segments
+            # Anatomy-aware shoulder/chest taper and natural waist profile.
+            vertices.append((wx*math.cos(a),depth*math.sin(a)+back,z))
+    for row in range(len(rings)-1):
+        for i in range(segments):
+            j=(i+1)%segments
+            faces.append((row*segments+i,row*segments+j,(row+1)*segments+j,(row+1)*segments+i))
+    faces.append(tuple(range(segments-1,-1,-1)))
+    faces.append(tuple((len(rings)-1)*segments+i for i in range(segments)))
+    mesh=bpy.data.meshes.new(name+'_geometry')
+    mesh.from_pydata(vertices,[],faces);mesh.materials.append(mat);mesh.update()
+    obj=bpy.data.objects.new(name,mesh);bpy.context.collection.objects.link(obj)
+    for p in mesh.polygons:p.use_smooth=True
+    subdivision=obj.modifiers.new('Tailored fabric smoothing','SUBSURF')
+    subdivision.levels=2
+    return obj
+
+def fabric_print(name,text,xyz,size,material):
+    bpy.ops.object.text_add(location=xyz,rotation=(math.pi/2,0,0))
+    obj=bpy.context.object;obj.name=name;obj.data.body=text
+    obj.data.align_x='CENTER';obj.data.align_y='CENTER'
+    obj.data.size=size;obj.data.extrude=.0008
+    obj.data.materials.append(material)
+    bpy.ops.object.convert(target='MESH')
+    return bpy.context.object
+
 # Realistic adult proportions: head ~0.23m, total height ~1.87m,
 # pelvis around 0.99m, shoulders 1.48m. Head is not exaggerated.
-uv("torso anatomical mesh",(0,0,1.275),(.235,.14,.315),jersey,40,24)
-uv("pelvis", (0,0,.985),(.20,.125,.13),pants,32,16)
+tailored_mesh("tailored jersey torso",[
+ (.975,.187,.125,0),(1.02,.192,.127,0),(1.11,.193,.139,0),
+ (1.22,.211,.149,0),(1.34,.249,.164,0),(1.44,.264,.158,0),
+ (1.505,.204,.119,0),(1.57,.080,.073,0)],jersey,40)
+tailored_mesh("waist and trouser fit",[
+ (.91,.155,.114,0),(.96,.197,.122,0),(1.015,.203,.126,0),
+ (1.047,.197,.122,0)],pants,32)
+fabric_print("uniform chest number","18",(0,-.165,1.31),.105,jersey_trim)
 uv("neck",(0,-.007,1.607),(.069,.065,.091),skin,24,14)
 uv("head cranium",(0,-.018,1.749),(.101,.093,.137),skin,40,28)
 uv("jaw",(0,-.046,1.691),(.084,.081,.070),skin,32,16)
@@ -102,6 +139,7 @@ cube("belt buckle",(0,-.148,.982),(.042,.012,.042),jersey_trim)
 uv("short hair crown",(0,-.003,1.841),(.105,.093,.058),hair,36,18)
 uv("cap crown",(0,-.003,1.853),(.119,.113,.063),helmet,36,18)
 uv("cap peak",(0,-.115,1.828),(.112,.125,.018),helmet,28,16)
+fabric_print("generic cap embroidery","D",(0,-.117,1.860),.052,jersey_trim)
 uv("leather fielding glove",(-.28,-.082,.93),(.079,.047,.107),leather,28,16)
 for i in range(4):
     tapered("glove finger "+str(i),(-.333+i*.034,-.09,.980),(-.335+i*.035,-.10,1.080),.018,.011,leather,10)
