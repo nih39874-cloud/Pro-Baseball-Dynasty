@@ -19,6 +19,14 @@ for(const [name,path] of assets){
   assert.equal(model.positions.length%9,0);
   assert(model.positions.every(Number.isFinite),`Invalid vertex in ${name}`);
   assert(model.colors.every(Number.isFinite),`Invalid material in ${name}`);
+  assert.equal(model.normals.length,model.positions.length,`Missing normal buffer in ${name}`);
+  const normals=model.normals;
+  let validNormals=0;
+  for(let i=0;i<normals.length;i+=3){
+   const magnitude=Math.hypot(normals[i],normals[i+1],normals[i+2]);
+   if(magnitude>.98&&magnitude<1.02)validNormals++;
+  }
+  assert(validNormals>model.triangleCount*2.8,`Blender smooth surface normals absent in ${name}`);
   const mesh=new MeshBuffer();
   appendGlbActor(mesh,model,0,0,[.3,.5,.7],1);
   assert.equal(mesh.p.length,mesh.c.length);
