@@ -3,8 +3,8 @@ const SESSION_KEY='pbd_supabase_auth_v1';
 let cached=null;
 const emailOf=username=>`${username.toLowerCase()}@accounts.diamond-dynasty.invalid`;
 function check(){if(!BACKEND.url||!BACKEND.publishableKey)throw Error('Supabase 尚未配置');}
-function readSession(){if(cached)return cached;try{cached=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');}catch{}return cached;}
-function storeSession(s){cached=s;try{if(s)sessionStorage.setItem(SESSION_KEY,JSON.stringify(s));else sessionStorage.removeItem(SESSION_KEY);}catch{}}
+function readSession(){if(cached)return cached;try{cached=JSON.parse(localStorage.getItem(SESSION_KEY)||sessionStorage.getItem(SESSION_KEY)||'null');}catch{}return cached;}
+function storeSession(s){cached=s;try{if(s){localStorage.setItem(SESSION_KEY,JSON.stringify(s));sessionStorage.removeItem(SESSION_KEY);}else{localStorage.removeItem(SESSION_KEY);sessionStorage.removeItem(SESSION_KEY);}}catch{}}
 export function isSignedIn(){return !!readSession()?.access_token;}
 export async function refreshSession(){check();const s=readSession();if(!s?.refresh_token)return null;
  if((s.expires_at||0)>Math.floor(Date.now()/1000)+60)return s;
@@ -23,7 +23,7 @@ export async function apiCall(action='status',data={}){check();let s=await refre
  const r=await fetch(`${BACKEND.url}/functions/v1/game-api`,{method:'POST',headers:{apikey:BACKEND.publishableKey,Authorization:`Bearer ${s.access_token}`,'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
  let result={};try{result=await r.json();}catch{}
  if(r.status===401){storeSession(null);throw Error('登入失效，請重新登入');}
- if(!r.ok||!result.ok)throw Error(result.error||`伺服器錯誤 ${r.status}`);
+ if(!r.ok||!result.ok){const errors={MEMBERSHIP_NOT_READY:'帳號尚未綁定球隊權限',MEMBERSHIP_INVALID:'帳號所屬聯盟或權限不正確',LEAGUE_NOT_FOUND:'找不到聯盟'};throw Error(errors[result.error]||result.error||`伺服器錯誤 ${r.status}`);}
  return result;
 }
 export function getSessionMetadata(){const s=readSession();return s?{expires_at:s.expires_at,user_id:s.user?.id}:null;}
