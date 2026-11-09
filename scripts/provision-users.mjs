@@ -19,7 +19,7 @@ async function api(path,options={}){
 }
 for(const [username] of entries){
  const pwd=credentials[username];
- if(typeof pwd!=='string'||pwd.length<4)throw Error(`Missing supplied password for ${username}`);
+ if(typeof pwd!=='string'||(username==='GM'?!/^\d{8}$/.test(pwd):!/^\d{4}$/.test(pwd)))throw Error(`PIN format error for ${username}: GM requires 8 digits, teams require 4 digits`);
 }
 const leagues=await api('/rest/v1/leagues?select=id,kind');
 const byKind=Object.fromEntries(leagues.map(l=>[l.kind,l.id]));
