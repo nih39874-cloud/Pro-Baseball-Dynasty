@@ -50,13 +50,17 @@ Deno.serve(async(req:Request)=>{
   const participates=game.home_team_id===member.team_id||game.away_team_id===member.team_id;
   if(!isGM&&!participates)return fail(req,'GAME_NOT_ALLOWED',403);
   if(action==='status'){
-    const [sess,control,events,pitch]=await Promise.all([
+    const motionTeam=isGM?String(body.team_id||''):member.team_id;
+    const allowedMotion=motionTeam&&[game.home_team_id,game.away_team_id].includes(motionTeam);
+    const [sess,control,events,pitch,motion]=await Promise.all([
       db.from('match_sessions').select('state,version,updated_at,completed_at').eq('game_id',gameId).maybeSingle(),
       db.from('match_team_controls').select('team_id,active_mode,pending_mode,last_heartbeat_at,abs_remaining').eq('game_id',gameId),
       db.from('game_events').select('seq,type,payload,created_at').eq('game_id',gameId).order('seq',{ascending:false}).limit(35),
-      db.from('match_pitch_states').select('balls,strikes,pitch_no,pending_pitch,review,last_outcome,updated_at').eq('game_id',gameId).maybeSingle()
+      db.from('match_pitch_states').select('balls,strikes,pitch_no,pending_pitch,review,last_outcome,updated_at').eq('game_id',gameId).maybeSingle(),
+      allowedMotion?db.from('match_motion_intents').select('role,selected_position,direction_x,direction_z,action,atbat_key,updated_at')
+        .eq('game_id',gameId).eq('team_id',motionTeam).maybeSingle():Promise.resolve({data:null,error:null})
     ]);
-    if(sess.error||control.error||events.error||pitch.error)return fail(req,'MATCH_READ_FAILED',503);
+    if(sess.error||control.error||events.error||pitch.error||motion.error)return fail(req,'MATCH_READ_FAILED',503);
     const ps=pitch.data;
     // Keep unresolved pitch position and private umpire verdict on the server.
     // Realtime callbacks trigger a fresh authorized status read, never broadcast private coordinates.
@@ -65,6 +69,7 @@ Deno.serve(async(req:Request)=>{
       speed_kmh:ps.pending_pitch.speed_kmh,stamina_percent:ps.pending_pitch.stamina_percent}:null;
     const review=ps?.review?{pitch_id:ps.review.pitch_id,until:ps.review.until,called_strike:ps.review.called_strike}:null;
     return reply(req,{ok:true,game,session:sess.data,controls:control.data||[],events:(events.data||[]).reverse(),
+      own_motion:motion.data||null,
       pitch_state:ps?{balls:ps.balls,strikes:ps.strikes,pitch_no:ps.pitch_no,pending_pitch:publicPitch,review,
         last_outcome:ps.last_outcome,updated_at:ps.updated_at}:null,clock_enabled:league.clock_enabled});
   }
@@ -97,6 +102,18 @@ Deno.serve(async(req:Request)=>{
   }else if(action==='abs'){
     const cmd=String(body.command_id||'');assert(UUID.test(cmd),'INVALID_COMMAND_ID');
     response=await db.rpc('server_manual_abs',{p_game:gameId,p_team:teamId,p_command:cmd,p_actor:actor});
+  }else if(action==='motion'){
+    const role=String(body.role||''),position=body.position==null?null:String(body.position);
+    const kind=String(body.kind||''),cmd=String(body.command_id||'');
+    const dx=Number(body.dx),dz=Number(body.dz);
+    assert(['fielder','runner'].includes(role)&&Number.isFinite(dx)&&Number.isFinite(dz)
+      &&dx>=-1&&dx<=1&&dz>=-1&&dz<=1&&UUID.test(cmd),'INVALID_MOVEMENT_INPUT');
+    assert(role==='fielder'?['move','catch','dive','jump','throw'].includes(kind):
+      ['run','hold','slide','return'].includes(kind),'INVALID_MOVEMENT_ACTION');
+    response=await db.rpc('server_live_motion',{
+      p_game:gameId,p_team:teamId,p_role:role,p_pos:position,p_dx:dx,p_dz:dz,
+      p_action:kind,p_command:cmd,p_actor:actor
+    });
   }else if(action==='heartbeat'){
     response=await db.rpc('server_live_heartbeat',{p_game:gameId,p_team:teamId,p_actor:actor});
   }else if(action==='command'){
