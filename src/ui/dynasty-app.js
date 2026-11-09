@@ -152,7 +152,7 @@ function market(){
  return (gm()?'':'<button class="opening-entry" data-page="trades"><span>六隊球員交易提案</span><strong>提出／接受交易 ›</strong></button>')+'<div class="market-hero"><span>PLAYER MARKET // '+escape(state.session?.year||'2024')+'</span><b>'+(gm()?'平行宇宙 · 即時交易':'自由球員競價市場')+'</b><small>'+(gm()?'在自己的平行球團自由簽人，不影響正式六隊':'球員提出報價後，依聯盟週期結算')+'</small></div>'+
  (gm()?'<div class="switch-tabs"><button data-markettab="available" class="'+(state.marketTab==='available'?'selected':'')+'">市場球員</button><button data-markettab="own" class="'+(state.marketTab==='own'?'selected':'')+'">本隊續約</button></div>':'')+
  '<div class="inline-search"><input id="filter-market" placeholder="搜尋姓名 / 球員" value="'+escape(state.search)+'"><button data-action="search-market">搜尋</button></div>'+
- '<div class="list-scroller market-rows">'+list.slice(0,220).map(p=>'<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+escape(gm()?tname(p.team_id):'自由身分')+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></span><button class="mini" data-sign="'+p.master_player_id+'">'+(gm()?(p.team_id===ownTeam()?'續約':'簽入'):'報價')+'</button></div>').join('')+(list.length?'':empty('此分類暫時沒有符合條件的球員'))+'</div>';
+ '<div class="list-scroller market-rows">'+list.slice(0,220).map(p=>'<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+escape(gm()?tname(p.team_id):'自由身分')+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></span><button class="mini scout-mini" data-scout-id="'+p.master_player_id+'">球探</button><button class="mini" data-sign="'+p.master_player_id+'">'+(gm()?(p.team_id===ownTeam()?'續約':'簽入'):'報價')+'</button></div>').join('')+(list.length?'':empty('此分類暫時沒有符合條件的球員'))+'</div>';
 }
 
 function trades(){
@@ -358,6 +358,16 @@ root.addEventListener('click',async e=>{
  if(b.dataset.view){state.view=state.view===b.dataset.view?'':b.dataset.view;render();return;}
  if(b.dataset.player){openPlayer(Number(b.dataset.player));return;}
  if(b.dataset.openingToggle){const id=Number(b.dataset.openingToggle);const selected=state.openingIds||[];state.openingIds=selected.includes(id)?selected.filter(x=>x!==id):selected.length<28?[...selected,id]:selected;render();return;}
+ if(b.dataset.scoutId!==undefined){
+  const playerId=Number(b.dataset.scoutId);
+  if(!confirm('球探報告初次費用 NT$25,000；同一年同一球員重新查看不會重複扣費。確定查看？'))return;
+  try{
+   const res=await apiCall('scout-player',{player_id:playerId});
+   const report=res.report||{},grade=Number(report.grade||0);
+   state.modal={title:'球探評估',content:'<div class="player-game-heading"><span>★</span><b>評估級別 '+grade+'/5</b></div><p class="quiet">'+escape(report.evidence||'公開資料評估')+'</p><div class="financial-row"><span>本次支出</span><b>'+money(report.fee_ntd||0)+'</b></div><p class="quiet">球探評估不會揭露真正的隱藏戰力。</p>'};
+   state.session=await apiCall('status');state.notice='';
+  }catch(err){state.notice=err.message||'球探失敗';}render();return;
+ }
  if(b.dataset.sign){openSign(Number(b.dataset.sign));return;}
  if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？'+(gm()?'GM 測試模式不需要冷卻。':'降二軍後需等待 4 小時才能升回一軍。')))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice=gm()?'GM 測試模式：已完成'+(to==='active'?'升一軍':'降二軍')+'，可立即反向操作。':to==='active'?'已升上一軍，可隨時再降二軍。':'已下放二軍，4 小時後可再升一軍。';render();}catch(err){state.notice=err.message;render()}return;}
  const action=b.dataset.action;
