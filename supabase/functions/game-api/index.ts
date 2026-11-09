@@ -37,13 +37,13 @@ Deno.serve(async (req: Request) => {
     const member = memberships[0];
     const { data: league, error: leagueError } = await db.from('leagues').select('*').eq('id', member.league_id).single();
     if (leagueError || !league) return fail(req, 'LEAGUE_NOT_FOUND', 404);
-    if (member.role === 'gm' ? league.kind !== 'gm' : league.kind !== 'official' || !member.team_id)
+    if (league.kind !== 'official' || (member.role === 'manager' && !member.team_id) || !['manager','gm'].includes(member.role))
       return fail(req, 'MEMBERSHIP_INVALID', 403);
     const body = await req.json().catch(() => ({}));
     if (typeof body !== 'object' || !body) return fail(req, 'INVALID_REQUEST');
     const action = String(body.action || 'status');
     const pickTeam = String(body.team_id || member.team_id || '');
-    const isGM = member.role === 'gm' && league.kind === 'gm';
+    const isGM = member.role === 'gm' && league.kind === 'official';
     const allowedTeam = isGM ? teamIds.has(pickTeam) : pickTeam === member.team_id;
     const responseBase = { kind: league.kind, league_id: league.id, year: league.current_year, phase: league.season_phase,
       season_anchor_at: league.season_anchor_at, is_ready: league.is_ready, clock_enabled: league.clock_enabled, clock_last_tick: league.clock_last_tick, roster_source_status: league.roster_source_status, role: member.role,
