@@ -9,7 +9,7 @@ const $=id=>document.getElementById(id);
 const fmt=n=>(n/100000000).toFixed(2)+' 億';
 function escapeHtml(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 export class GameUI{
- constructor(engine){this.e=engine;this.state=engine.s;this.modal='intro';this.lastMessage='';this.lastStamp=0;this.lastRole='';this.lastStatus='';this.lastPhase='';this.lastInning='';this.batToggle=false;this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachOpponent=null;this.coachDraft=null;this.liveList=null;this.liveSelected=null;this.liveData=null;this.liveRoster=null;this.liveStop=null;this.liveTimer=null;this.liveHeartbeat=null;this.liveLoading=false;this.working=false;this.bind();this.showModal('intro');}
+ constructor(engine){this.e=engine;this.state=engine.s;this.modal='intro';this.lastMessage='';this.lastStamp=0;this.lastRole='';this.lastStatus='';this.lastPhase='';this.lastInning='';this.batToggle=false;this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachOpponent=null;this.coachDraft=null;this.liveList=null;this.liveSelected=null;this.liveData=null;this.liveRoster=null;this.liveStop=null;this.liveTimer=null;this.liveHeartbeat=null;this.liveLoading=false;this.liveBusy=false;this.liveAim={x:0,y:0};this.liveMeterAt=0;this.liveStepTimer=null;this.working=false;this.bind();this.showModal('intro');}
  bind(){
  $('btn-menu').addEventListener('click',()=>this.showModal('dashboard'));
  $('modeBar').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(b)this.e.setMode(b.dataset.mode)});
@@ -24,12 +24,25 @@ export class GameUI{
  $('fieldChoice').addEventListener('click',e=>{const b=e.target.closest('[data-player]');if(b)this.e.chooseFielder(b.dataset.player)});
  $('modalBody').addEventListener('click',e=>this.handleModalClick(e).catch(err=>this.openToast(err.message||'操作失敗')));
  $('modalBody').addEventListener('change',e=>{if(e.target.id==='chooseOpp'){this.selectedOpp=e.target.value}});
+ const modal=$('modalBody');
+ const moveAim=e=>{
+   const pad=e.target.closest?.('[data-live-pad]');
+   if(!pad||this.modal!=='live')return;
+   const rect=pad.getBoundingClientRect();
+   const x=Math.max(-1.25,Math.min(1.25,((e.clientX-rect.left)/rect.width-.5)*2.5));
+   const y=Math.max(-1.25,Math.min(1.25,(.5-(e.clientY-rect.top)/rect.height)*2.5));
+   this.liveAim={x,y};const left=(50+x*38)+'%',top=(50-y*38)+'%';
+   for(const dot of pad.querySelectorAll('.live-aim-center,.live-virtual-bat')){dot.style.left=left;dot.style.top=top;}
+   e.preventDefault();
+ };
+ modal.addEventListener('pointerdown',e=>{const pad=e.target.closest?.('[data-live-pad]');if(pad){pad.setPointerCapture?.(e.pointerId);moveAim(e)}});
+ modal.addEventListener('pointermove',e=>{if(e.buttons&&e.target.closest?.('[data-live-pad]'))moveAim(e)});
  this.e.onMessage=msg=>{this.openToast(msg);this.render()};this.e.onUpdate=()=>this.render();
  }
  openToast(msg){$('toast').textContent=msg;$('toast').classList.add('shown');clearTimeout(this.toastHandle);this.toastHandle=setTimeout(()=>$('toast').classList.remove('shown'),1400)}
  showModal(type){if(type!=='live')this.stopLiveWatcher();this.modal=type;$('modal').classList.remove('hidden');this.renderModal();if(this.remote&&['dashboard','finance','season','gm','roster','fa','coach','live'].includes(type))this.loadRemote(type)}
  hideModal(){this.stopLiveWatcher();$('modal').classList.add('hidden');this.modal='';}
- async handleModalClick(e){const b=e.target.closest('[data-nav],[data-team],[data-start],[data-gm],[data-quick],[data-restart],[data-login],[data-logout],[data-refresh],[data-submit-roster],[data-offer],[data-coach-opponent],[data-coach-save],[data-coach-autofill],[data-coach-move],[data-live-select],[data-live-join],[data-live-mode],[data-live-cmd],[data-live-refresh]');if(!b)return;
+ async handleModalClick(e){const b=e.target.closest('[data-nav],[data-team],[data-start],[data-gm],[data-quick],[data-restart],[data-login],[data-logout],[data-refresh],[data-submit-roster],[data-offer],[data-coach-opponent],[data-coach-save],[data-coach-autofill],[data-coach-move],[data-live-select],[data-live-join],[data-live-mode],[data-live-cmd],[data-live-refresh],[data-live-pitch],[data-live-bat],[data-live-abs]');if(!b)return;
  if(b.dataset.login!==undefined){if(this.working)return;const username=$('loginUser')?.value?.trim();const password=$('loginPass')?.value||'';this.working=true;try{const r=await signIn(username,password);this.remote=r.status;this.state.team=r.status.team_id||this.state.team;this.openToast('登入成功：'+(r.status.role==='gm'?'GM':'球隊經理人'));this.showModal('dashboard');}finally{this.working=false;}return;}
  if(b.dataset.logout!==undefined){await signOut();this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachDraft=null;$('connection').textContent='LOCAL';this.openToast('已登出正式聯盟');this.showModal('auth');return;}
  if(b.dataset.refresh!==undefined){await this.loadRemote(this.modal);return;}
@@ -43,6 +56,44 @@ export class GameUI{
   if(!this.liveSelected)throw Error('請先選擇比賽');
   await liveApi('mode',{game_id:this.liveSelected,team_id:this.viewTeam(),mode:b.dataset.liveMode});
   await this.fetchLiveGame();this.openToast('控制模式已更新');return;
+ }
+ if(b.dataset.livePitch!==undefined){
+   if(!this.liveSelected||this.liveBusy) return;
+   if(!this.liveMeterAt){this.liveMeterAt=Date.now();this.renderModal();return;}
+   const elapsed=(Date.now()-this.liveMeterAt)%2100;
+   const phase=elapsed<=1050?elapsed/1050:2-elapsed/1050;
+   const edge=Math.max(Math.abs(this.liveAim.x),Math.abs(this.liveAim.y))/1.25;
+   const quality=Math.max(0,Math.min(1,1-Math.abs(phase-.5)*(2.7+edge*3)));
+   this.liveMeterAt=0;this.liveBusy=true;
+   try{
+     await liveApi('pitch',{game_id:this.liveSelected,team_id:this.viewTeam(),x:this.liveAim.x,y:this.liveAim.y,
+       quality,pitch_type:$('livePitchType')?.value||'four_seam',command_id:crypto.randomUUID()});
+     this.openToast('出手已送出，判定由伺服器執行');await this.fetchLiveGame();
+   }finally{this.liveBusy=false;}
+   return;
+ }
+ if(b.dataset.liveBat!==undefined){
+   if(!this.liveSelected||this.liveBusy)return;
+   const kind=b.dataset.liveBat,pitch=this.liveData?.pitch_state?.pending_pitch;
+   if(!pitch)throw Error('尚未有可操作的投球');
+   const elapsed=(Date.now()-Date.parse(pitch.released_at))/1000;
+   const timing=kind==='take'?0:Math.max(-1,Math.min(1,(elapsed-.95)/.9));
+   this.liveBusy=true;
+   try{
+     await liveApi('bat',{game_id:this.liveSelected,team_id:this.viewTeam(),kind,x:this.liveAim.x,y:this.liveAim.y,
+       timing,command_id:crypto.randomUUID()});
+     this.openToast(kind==='swing'?'伺服器已判定揮棒':'已交由主審判定好壞球');await this.fetchLiveGame();
+   }finally{this.liveBusy=false;}
+   return;
+ }
+ if(b.dataset.liveAbs!==undefined){
+   if(!this.liveSelected||this.liveBusy)return;
+   this.liveBusy=true;
+   try{
+     const result=await liveApi('abs',{game_id:this.liveSelected,team_id:this.viewTeam(),command_id:crypto.randomUUID()});
+     this.openToast(result.value?.overturned?'ABS 挑戰成功，已改判':'ABS 維持原判');await this.fetchLiveGame();
+   }finally{this.liveBusy=false;}
+   return;
  }
  if(b.dataset.liveCmd!==undefined){
   if(!this.liveSelected)throw Error('請先選擇比賽');
@@ -87,6 +138,8 @@ export class GameUI{
  stopLiveWatcher(){
   if(this.liveTimer){clearInterval(this.liveTimer);this.liveTimer=null;}
   if(this.liveHeartbeat){clearInterval(this.liveHeartbeat);this.liveHeartbeat=null;}
+  if(this.liveStepTimer){clearInterval(this.liveStepTimer);this.liveStepTimer=null;}
+  this.liveMeterAt=0;
   if(this.liveStop){this.liveStop();this.liveStop=null;}
  }
  async fetchLiveGame(){
@@ -98,7 +151,7 @@ export class GameUI{
   }finally{this.liveLoading=false;}
  }
  async watchLive(gameId,join=false){
-  this.stopLiveWatcher();this.liveSelected=gameId;this.liveData=null;this.liveRoster=null;
+  this.stopLiveWatcher();this.liveSelected=gameId;this.liveData=null;this.liveRoster=null;this.liveAim={x:0,y:0};
   if(join)await liveApi('join',{game_id:gameId,team_id:this.viewTeam()});
   await this.fetchLiveGame();
   const game=this.liveData?.game;
@@ -109,9 +162,15 @@ export class GameUI{
   this.liveTimer=setInterval(()=>{if(this.modal==='live')void this.fetchLiveGame().catch(()=>{});},5000);
   this.liveHeartbeat=setInterval(()=>{
    const mine=this.liveData?.controls?.find(x=>x.team_id===this.viewTeam());
-   if(this.modal==='live'&&mine?.active_mode==='coach'&&this.liveData?.game?.phase==='live')
+   if(this.modal==='live'&&['coach','player'].includes(mine?.active_mode)&&this.liveData?.game?.phase==='live')
      void liveApi('heartbeat',{game_id:gameId,team_id:this.viewTeam()}).catch(()=>{});
   },15000);
+  this.liveStepTimer=setInterval(()=>{
+   if(this.modal==='live'&&this.liveData?.game?.phase==='live'&&
+     this.liveData?.controls?.some(x=>x.active_mode==='player')){
+      void liveApi('tick',{game_id:gameId,team_id:this.viewTeam()}).catch(()=>{});
+   }
+  },3000);
   if(this.modal==='live')this.renderModal();
  }
  viewTeam(){return this.remote?.role==='gm'?this.state.team:(this.remote?.team_id||this.state.team)}
@@ -131,13 +190,14 @@ export class GameUI{
  renderModal(){const s=this.state,p=s.practice;
  if(this.modal==='intro'){$('modalBody').innerHTML=`<div class="intro"><div><span class="chip">PWA · 3D · 橫向操作</span><h1 style="margin-top:11px">鑽石王朝</h1><div class="subtitle">PRO BASEBALL DYNASTY</div><p>六隊經營 × 第一人稱棒球實戰。你可以現在直接操作投球瞄準、精準跑條、打擊、守備及 ABS 挑戰。</p><div class="notice">目前提供<strong>本機練習賽與管理操作</strong>；專用 Supabase 後端已建立；球隊帳號尚待安全開通；2024 出賽球員＋2025／2026 選秀球員已入庫，但完整註冊名單、寫實人物模型與逐球同步對戰仍未完成，不會把練習資料當正式紀錄。</div><div class="modal-actions"><button class="btn accent" data-nav="choose">開始練習賽</button><button class="btn" data-nav="dashboard">球隊與 GM 控制中心</button><button class="btn" data-nav="auth">正式聯盟登入</button></div></div><div class="intro-feature"><b>操作特點</b><div class="bullet">◆ 自動 / 總教練 / 場上球員切換<br/>◆ MOBA 左手瞄準、右手球種與揮棒<br/>◆ 3D 球場與 ABS 電子好球帶<br/>◆ GM 與正式聯盟分離資料架構<br/>◆ 每隊初始資金 NT$5 億元</div></div></div>`;return;}
  if(this.modal==='choose'){$('modalBody').innerHTML=this.header('選擇本機練習球隊','在這裡選擇要操控的球隊；練習賽不需要正式帳號，也不會寫入官方聯盟。')+`<div class="team-grid">${this.teamCards()}</div><div class="section"><div class="formline"><label>對戰球隊</label><select id="chooseOpp">${this.teamOptions(s.team)}</select></div><div class="modal-actions"><button class="btn accent" data-start="1">進入 3D 球場</button><button class="btn ghost" data-nav="intro">返回</button></div></div>`;return;}
- if(this.modal==='dashboard'&&this.remote){const r=this.remote;const cash=r.finances?.find(x=>x.team_id===this.viewTeam());$('modalBody').innerHTML=this.header(r.kind==='gm'?'GM 模擬管理中心':'中職六隊管理中心',`${r.kind==='gm'?'GM 模擬聯盟':'中職六隊聯盟'} · ${r.year} 年 · ${TEAMS.find(t=>t.id===this.viewTeam())?.name||'GM'} · ${r.phase}`)+`<div class="panel-grid"><div class="metric"><small>目前資金</small><b>${fmt(cash?.cash_ntd||0)}</b></div><div class="metric"><small>目前球季</small><b>${r.year}</b></div><div class="metric"><small>賽季狀態</small><b>${r.clock_enabled?(r.is_ready?'時鐘與賽事運行中':'時鐘運行・等待球員'):'正式上線前暫停'}</b></div></div><div class="modal-actions"><button class="btn" data-nav="roster">球隊球員／名單</button><button class="btn accent" data-nav="coach">總教練先發／一二軍</button><button class="btn accent" data-nav="live">即時觀戰／臨場調度</button><button class="btn" data-nav="fa">自由球員</button><button class="btn" data-nav="finance">聯盟財務</button><button class="btn" data-nav="season">賽程</button>${r.role==='gm'?'<button class="btn accent" data-nav="gm">GM 後端控制</button>':''}<button class="btn" data-nav="choose">本機 3D 練習</button><button class="btn" data-logout>登出</button><button class="btn" data-refresh>重新同步</button></div><div class="notice">後端賽程與經營資料已連線；逐球 3D 比賽目前仍是本機練習，不會擅自寫入正式戰績。</div><div class="section"><h3>最近賽事</h3>${(r.recent||[]).slice(0,7).map(x=>`<div class="rowline">${escapeHtml(x.away_team_id)} ${x.away_score}：${x.home_score} ${escapeHtml(x.home_team_id)} <span>${escapeHtml(x.season_stage)}</span></div>`).join('')||'<p>尚未有已結束的比賽。</p>'}</div>`;return;}
+ if(this.modal==='dashboard'&&this.remote){const r=this.remote;const cash=r.finances?.find(x=>x.team_id===this.viewTeam());$('modalBody').innerHTML=this.header(r.kind==='gm'?'GM 模擬管理中心':'中職六隊管理中心',`${r.kind==='gm'?'GM 模擬聯盟':'中職六隊聯盟'} · ${r.year} 年 · ${TEAMS.find(t=>t.id===this.viewTeam())?.name||'GM'} · ${r.phase}`)+`<div class="panel-grid"><div class="metric"><small>目前資金</small><b>${fmt(cash?.cash_ntd||0)}</b></div><div class="metric"><small>目前球季</small><b>${r.year}</b></div><div class="metric"><small>賽季狀態</small><b>${r.clock_enabled?(r.is_ready?'時鐘與賽事運行中':'時鐘運行・等待球員'):'正式上線前暫停'}</b></div></div><div class="modal-actions"><button class="btn" data-nav="roster">球隊球員／名單</button><button class="btn accent" data-nav="coach">總教練先發／一二軍</button><button class="btn accent" data-nav="live">即時觀戰／臨場調度</button><button class="btn" data-nav="fa">自由球員</button><button class="btn" data-nav="finance">聯盟財務</button><button class="btn" data-nav="season">賽程</button>${r.role==='gm'?'<button class="btn accent" data-nav="gm">GM 後端控制</button>':''}<button class="btn" data-nav="choose">本機 3D 練習</button><button class="btn" data-logout>登出</button><button class="btn" data-refresh>重新同步</button></div><div class="notice">後端賽程與經營資料已連線；伺服器逐球投打已具備實驗性操作；3D 真人投打動畫與多人守備仍待整合驗證，正式聯盟維持暫停。</div><div class="section"><h3>最近賽事</h3>${(r.recent||[]).slice(0,7).map(x=>`<div class="rowline">${escapeHtml(x.away_team_id)} ${x.away_score}：${x.home_score} ${escapeHtml(x.home_team_id)} <span>${escapeHtml(x.season_stage)}</span></div>`).join('')||'<p>尚未有已結束的比賽。</p>'}</div>`;return;}
  if(this.modal==='live'&&this.remote){
   const selected=this.liveData?.game;
-  $('modalBody').innerHTML=this.header('即時比賽同步與臨場總教練','伺服器逐打席判定 · 可觀戰及管理先發／換投／代打')+
+  $('modalBody').innerHTML=this.header('即時比賽同步與臨場總教練','伺服器逐球投打與總教練即時調度 · ABS 挑戰')+
    (this.remote.role==='gm'?'<div class="team-grid">'+this.teamCards()+'</div>':'')+
    renderLivePanel({games:this.liveList?.games||[],selection:this.liveSelected,gameData:this.liveData,
-    teamId:this.viewTeam(),players:this.liveRoster?.players||[],clockEnabled:this.liveList?.clock_enabled??false});
+    teamId:this.viewTeam(),players:this.liveRoster?.players||[],clockEnabled:this.liveList?.clock_enabled??false,
+    aim:this.liveAim,meterRunning:!!this.liveMeterAt});
   return;
  }
  if(this.modal==='coach'&&this.remote){
