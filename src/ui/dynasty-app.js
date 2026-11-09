@@ -38,7 +38,7 @@ function home(){
 function roster(){
  if(!state.roster)return empty('球員資料讀取中');
  const d=state.roster,all=d.players||[],currentActive=all.filter(p=>p.roster_status==='active').length;
- const pending=d.phase==='pending'&&!d.season_finished;
+ const pending=d.phase==='pending'&&!d.season_finished&&!d.season_started;
  const seasonClosed=d.season_finished||['offseason','finished','completed','complete','ended','season_end'].includes(d.phase);
  const moveEnabled=!pending&&!seasonClosed;
  const eligible=all.filter(p=>['active','reserve'].includes(p.roster_status));
