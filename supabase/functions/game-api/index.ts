@@ -64,10 +64,71 @@ Deno.serve(async (req: Request) => {
       return json(req, { ok: true, ...responseBase, finances: fin.data, upcoming: games.data,
         recent: recent.data, champions: champs.data });
     }
+    if (action === 'coach-config') {
+      need(allowedTeam,'TEAM_NOT_ALLOWED');
+      const [teamPlayers,configs,history]=await Promise.all([
+        db.from('league_players')
+          .select('master_player_id,team_id,roster_status,promotion_available_at,roster_changed_at,batting_rating,pitching_rating,fielding_rating,players_master(full_name,primary_position,bats,throws,source_year,draft_year)')
+          .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(200),
+        db.from('coach_lineups')
+          .select('team_id,opponent_team_id,batting_order,defense,is_custom,needs_review,saved_at')
+          .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id)
+          .eq('season_year',league.current_year).eq('team_id',pickTeam),
+        db.from('roster_move_logs')
+          .select('master_player_id,old_status,new_status,changed_at,promotion_available_at')
+          .eq('league_id',league.id).eq('team_id',pickTeam).order('changed_at',{ascending:false}).limit(15)
+      ]);
+      if(teamPlayers.error||configs.error||history.error)return fail(req,'COACH_CONFIG_READ_FAILED',503);
+      const ids=(teamPlayers.data||[]).map(p=>p.master_player_id);
+      let positions=[];
+      if(ids.length){
+        const pos=await db.from('player_position_2024')
+          .select('master_player_id,league_level,position,games')
+          .in('master_player_id',ids).order('games',{ascending:false}).limit(550);
+        if(pos.error)return fail(req,'POSITION_DATA_READ_FAILED',503);
+        positions=pos.data||[];
+      }
+      const byId=new Map();
+      for(const r of positions){const v=byId.get(r.master_player_id)||[];v.push(r);byId.set(r.master_player_id,v);}
+      return json(req,{ok:true,...responseBase,team_id:pickTeam,roster_limit:28,demotion_cooldown_seconds:14400,
+        players:(teamPlayers.data||[]).map(x=>({...x,fielding_positions:byId.get(x.master_player_id)||[]})),
+        lineups:configs.data||[],recent_moves:history.data||[]});
+    }
+    if (action === 'coach-default') {
+      need(allowedTeam,'TEAM_NOT_ALLOWED');
+      const r=await db.rpc('server_default_coach_lineup',{p_league:league.id,p_team:pickTeam});
+      return r.error?fail(req,r.error.message,409):json(req,{ok:true,...responseBase,default_lineup:r.data});
+    }
+    if (action === 'coach-save') {
+      need(allowedTeam,'TEAM_NOT_ALLOWED');
+      const opponent=String(body.opponent_team_id||'');
+      need(teamIds.has(opponent)&&opponent!==pickTeam,'INVALID_OPPONENT');
+      const batting=body.batting_order,defense=body.defense;
+      need(Array.isArray(batting)&&batting.length===9
+        &&batting.every(x=>Number.isSafeInteger(x)&&x>0)
+        &&defense&&typeof defense==='object'&&!Array.isArray(defense),'INVALID_LINEUP');
+      const required=['P','C','1B','2B','3B','SS','LF','CF','RF'];
+      need(Object.keys(defense).length===9 && required.every(k=>Number.isSafeInteger(defense[k])&&defense[k]>0),
+        'INVALID_DEFENSE');
+      const r=await db.rpc('server_save_coach_lineup',{
+        p_league:league.id,p_team:pickTeam,p_opponent:opponent,p_order:batting,
+        p_defense:defense,p_actor:user.id
+      });
+      return r.error?fail(req,r.error.message,409):json(req,{ok:true,...responseBase,save_result:r.data});
+    }
+    if (action === 'coach-move') {
+      need(allowedTeam,'TEAM_NOT_ALLOWED');
+      const playerId=Number(body.player_id),to=String(body.to_level||'');
+      need(Number.isSafeInteger(playerId)&&playerId>0&&(to==='active'||to==='reserve'),'INVALID_LEVEL_CHANGE');
+      const r=await db.rpc('server_move_player_level',{
+        p_league:league.id,p_team:pickTeam,p_player:playerId,p_to:to,p_actor:user.id
+      });
+      return r.error?fail(req,r.error.message,409):json(req,{ok:true,...responseBase,move_result:r.data});
+    }
     if (action === 'roster') {
       need(allowedTeam, 'TEAM_NOT_ALLOWED');
       const [players,rosters,offers] = await Promise.all([
-        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,fa_service_initial_estimate,fa_initial_eligible_reported,fa_2024_service_reported,fa_usage_min_seasons,fa_qualification_threshold,fa_qualify_note,batting_rating,pitching_rating,fielding_rating,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence,official_cpbl_id,bats,throws,birth_date)')
+        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,promotion_available_at,fa_service_initial_estimate,fa_initial_eligible_reported,fa_2024_service_reported,fa_usage_min_seasons,fa_qualification_threshold,fa_qualify_note,batting_rating,pitching_rating,fielding_rating,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence,official_cpbl_id,bats,throws,birth_date)')
           .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(250),
         db.from('roster_submissions').select('kind,player_ids,locked,auto_selected,submitted_at')
           .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam),
