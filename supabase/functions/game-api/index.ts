@@ -221,6 +221,19 @@ Deno.serve(async (req: Request) => {
           });
       return r.error?fail(req,r.error.message,409):json(req,{ok:true,...responseBase,move_result:r.data});
     }
+    if (action === 'team-stats') {
+      need(allowedTeam,'TEAM_NOT_ALLOWED');
+      const {data,error}=await db.rpc('server_team_season_stats',
+        {p_league:league.id,p_year:league.current_year,p_team:pickTeam});
+      return error?fail(req,'SEASON_STATS_READ_FAILED',503):json(req,{ok:true,...responseBase,players:data||[]});
+    }
+    if (action === 'awards') {
+      const {data,error}=await db.from('season_awards')
+        .select('season_year,award_code,player_id,team_id,score,players_master(full_name)')
+        .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id)
+        .order('season_year',{ascending:false}).limit(100);
+      return error?fail(req,'AWARDS_READ_FAILED',503):json(req,{ok:true,...responseBase,awards:data||[]});
+    }
     if (action === 'roster') {
       need(allowedTeam, 'TEAM_NOT_ALLOWED');
       const [players,rosters,offers,opening,champ,started] = await Promise.all([
@@ -236,19 +249,20 @@ Deno.serve(async (req: Request) => {
       ]);
       if (players.error || rosters.error || offers.error || opening.error || champ.error || started.error) return fail(req,'ROSTER_READ_FAILED',503);
       const ids=(players.data||[]).map(p=>p.master_player_id);
-      let stats=[],visual=[],salaryInfo=[];
+      let stats=[],visual=[],salaryInfo=[],conditions=[];
       if(ids.length){
-        const [st,vi,sa]=await Promise.all([
+        const [st,vi,sa,co]=await Promise.all([
           db.from('cpbl_season_reference').select('master_player_id,league_level,team_id,batting,pitching').eq('season_year',2024).in('master_player_id',ids).limit(600),
           db.from('player_visual_profiles').select('master_player_id,model_status').in('master_player_id',ids).limit(250),
-          db.from('player_salary_reference_2024').select('master_player_id,monthly_salary_ntd,evidence_type,source_url').in('master_player_id',ids).limit(250)
+          db.from('player_salary_reference_2024').select('master_player_id,monthly_salary_ntd,evidence_type,source_url').in('master_player_id',ids).limit(250),
+          db.from('player_conditions').select('master_player_id,fatigue,morale,injury_games_remaining').eq('league_id',league.id).in('master_player_id',ids).limit(250)
         ]);
-        if(st.error||vi.error||sa.error)return fail(req,'PLAYER_SOURCE_READ_FAILED',503);
-        stats=st.data||[];visual=vi.data||[];salaryInfo=sa.data||[];
+        if(st.error||vi.error||sa.error||co.error)return fail(req,'PLAYER_SOURCE_READ_FAILED',503);
+        stats=st.data||[];visual=vi.data||[];salaryInfo=sa.data||[];conditions=co.data||[];
       }
-      const byId=new Map(),byVisual=new Map(visual.map(x=>[x.master_player_id,x.model_status])),bySalary=new Map(salaryInfo.map(x=>[x.master_player_id,x]));
+      const byId=new Map(),byVisual=new Map(visual.map(x=>[x.master_player_id,x.model_status])),bySalary=new Map(salaryInfo.map(x=>[x.master_player_id,x])),byCondition=new Map(conditions.map(x=>[x.master_player_id,x]));
       for(const item of stats){const list=byId.get(item.master_player_id)||[];list.push(item);byId.set(item.master_player_id,list);}
-      const enriched=(players.data||[]).map(p=>({...p,reference_stats:byId.get(p.master_player_id)||[],salary_reference:bySalary.get(p.master_player_id)||null,visual_status:byVisual.get(p.master_player_id)||'missing'}));
+      const enriched=(players.data||[]).map(p=>({...p,reference_stats:byId.get(p.master_player_id)||[],salary_reference:bySalary.get(p.master_player_id)||null,condition:byCondition.get(p.master_player_id)||{fatigue:0,morale:50,injury_games_remaining:0},visual_status:byVisual.get(p.master_player_id)||'missing'}));
       return json(req,{ok:true,...responseBase,team_id:pickTeam,players:enriched,rosters:rosters.data,opening_roster:opening.data,season_finished:(champ.data||[]).length>0,season_started:(started.data||[]).length>0,offers:offers.data});
     }
     if (action === 'free-agents') {
