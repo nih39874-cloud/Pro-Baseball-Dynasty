@@ -7,7 +7,7 @@ const url=process.env.SUPABASE_URL?.replace(/\/$/,''), key=process.env.SUPABASE_
 const raw=process.env.DIAMOND_ACCOUNT_PASSWORDS;
 if(!url||!key||!raw)throw Error('Missing provisioning environment secrets');
 const credentials=JSON.parse(raw);
-const entries=[['GM',null,'gm','gm'],['brothers','brothers','manager','official'],['dragons','dragons','manager','official'],['unilions','unilions','manager','official'],['guardians','guardians','manager','official'],['rakuten','rakuten','manager','official'],['TSG','TSG','manager','official']];
+const entries=[['GM',null,'gm','official'],['brothers','brothers','manager','official'],['dragons','dragons','manager','official'],['unilions','unilions','manager','official'],['guardians','guardians','manager','official'],['rakuten','rakuten','manager','official'],['TSG','TSG','manager','official']];
 const heads={apikey:key,Authorization:`Bearer ${key}`,'Content-Type':'application/json'};
 async function api(path,options={}){
  const r=await fetch(`${url}${path}`,{...options,headers:{...heads,...options.headers}});
@@ -21,7 +21,7 @@ for(const [username] of entries){
 }
 const leagues=await api('/rest/v1/leagues?select=id,kind');
 const byKind=Object.fromEntries(leagues.map(l=>[l.kind,l.id]));
-if(!byKind.gm||!byKind.official)throw Error('Missing league records');
+if(!byKind.official)throw Error('Missing official league record');
 let existing=[];
 for(let page=1;page<=20;page++){
  const result=await api(`/auth/v1/admin/users?page=${page}&per_page=100`);
