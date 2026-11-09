@@ -158,7 +158,23 @@ export function buildStatic(){
  return b;
 }
 export class StadiumScene{
- constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.staticMesh=buildStatic();this.staticGpu=this.uploadMesh(this.staticMesh,gl.STATIC_DRAW);this.cameraYaw=0;this.setupAvatars();}
+ constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.staticMesh=buildStatic();this.staticGpu=this.uploadMesh(this.staticMesh,gl.STATIC_DRAW);this.loadStadiumGlb();this.cameraYaw=0;this.setupAvatars();}
+ async loadStadiumGlb(){
+  try{
+   const asset=await loadGlbGeometry(new URL('../../assets/models/stadium_base.glb',import.meta.url));
+   if(!this.gl)return;
+   const mesh=new MeshBuffer();
+   appendGlbActor(mesh,asset,0,0,[1,1,1],1);
+   if(!mesh.p.length||mesh.p.length!==mesh.c.length)throw Error('Invalid stadium triangles');
+   const replacement=this.uploadMesh(mesh,this.gl.STATIC_DRAW);
+   const previous=this.staticGpu;
+   this.staticGpu=replacement;
+   this.staticMesh=mesh;
+   this.gl.deleteBuffer(previous.positions);
+   this.gl.deleteBuffer(previous.colors);
+   this.stadiumAssetSource='blender_glb';
+  }catch(err){this.stadiumAssetSource='procedural_fallback';}
+ }
  uploadMesh(mesh,usage){
   const gl=this.gl,positions=gl.createBuffer(),colors=gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER,positions);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.p),usage);
