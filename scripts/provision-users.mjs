@@ -41,6 +41,14 @@ for(const [username,team,role,kind] of entries){
   user=result.user||result;
   if(!user.id)throw Error(`Missing created user ID for ${username}`);
   existing.push(user);
+ } else {
+  // Operator-controlled seven-account roster: reconcile the Auth password with
+  // the currently configured Environment secret on each manual provisioning run.
+  // The secret is never printed or committed.
+  await api(`/auth/v1/admin/users/${user.id}`,{
+    method:'PUT',
+    body:JSON.stringify({password:authPassword(username,credentials[username]),email_confirm:true})
+  });
  }
  const rows=await api(`/rest/v1/memberships?select=user_id,league_id,team_id,role&user_id=eq.${user.id}`);
  const current=rows.find(r=>r.league_id===byKind[kind]);
