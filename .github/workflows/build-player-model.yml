@@ -1,12 +1,6 @@
 name: Build professional 3D player asset (Blender)
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'scripts/blender/build_player.py'
-      - 'scripts/blender/build_stadium.py'
-      - 'scripts/blender/render_preview.py'
-      - '.github/workflows/build-player-model.yml'
 permissions:
   contents: write
 jobs:
