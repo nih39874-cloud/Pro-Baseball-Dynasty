@@ -14,11 +14,31 @@ export function makeLiveSceneState(data,teamId,frame={}) {
  const isPlaying=yourControl?.active_mode==='player';
  const viewMode=yourControl?.active_mode==='coach'?'coach':isPlaying?'field':'auto';
  const bases=Array.isArray(match.bases)?match.bases.map(Boolean).slice(0,3):[false,false,false];
+ // Once the server accepts a bounded movement intent, show a cosmetic displacement
+ // of the selected character. This is not authoritative collision or physics.
+ const intent=data?.own_motion;
+ const currentKey=`${Number(match.inning)||1}:${match.half||'top'}:${Number(match[(match.half==='top'?'home':'away')+'_index'])||0}`;
+ const sameAtBat=intent?.atbat_key===currentKey;
+ const fielders={...(frame.fielders||{})};
+ const runners=[...(frame.runners||[])];
+ if(isPlaying&&sameAtBat&&intent?.role==='fielder'&&
+   Object.prototype.hasOwnProperty.call(FIELDER_SPOTS,intent.selected_position)&&
+   !Object.prototype.hasOwnProperty.call(fielders,intent.selected_position)){
+   const base=FIELDER_SPOTS[intent.selected_position];
+   fielders[intent.selected_position]=[base[0]+clamp(intent.direction_x,-1,1)*8,
+     base[1]+clamp(intent.direction_z,-1,1)*8];
+ }
+ if(isPlaying&&sameAtBat&&intent?.role==='runner'&&!runners.length&&
+    (intent.action==='run'||intent.action==='slide'||intent.action==='return')){
+   const pos=runnerAnimation('1B',.28)||[0,0];
+   runners.push([pos[0]+clamp(intent.direction_x,-1,1)*2,
+     pos[1]+clamp(intent.direction_z,-1,1)*2]);
+ }
  return {
   visitor:game.away_team_id||'dragons',home:game.home_team_id||'brothers',team:teamId||game.away_team_id||'dragons',
   half:match.half==='bottom'?'bottom':'top',inning:Number(match.inning)||1,outs:Number(match.outs)||0,
   atBat:Number(match.at_bat||match.atBat||1),bases,score:[Number(match.away_score??game.away_score??0),Number(match.home_score??game.home_score??0)],
-  mode:viewMode,phase:frame.phase||'ready',ball:frame.ball||null,liveFielders:frame.fielders||{},liveRunners:frame.runners||[],
+  mode:viewMode,phase:frame.phase||'ready',ball:frame.ball||null,liveFielders:fielders,liveRunners:runners,
   selectedFielder:frame.selectedFielder||null,fielderPos:frame.fielderPos||null,runnerPos:frame.runnerPos||null,
   coachPos:{x:teamId===game.home_team_id?30:-30,z:5},aim:{x:0,y:0},pitchType:'four_seam',
  };

@@ -36,3 +36,10 @@ test('server event sequence is idempotent across repeated polls and resets on ne
  rep.replay(950);assert.equal(rep.startedAt,950);
  rep.ingest({...d,game:{id:'g2'}},1300);assert.equal(rep.startedAt,1300);
 });
+test('acknowledged fielding intent gives cosmetic movement only to controlled player',()=>{
+ const game={id:'g',phase:'live',home_team_id:'brothers',away_team_id:'dragons'};
+ const data={game,session:{state:{inning:1,half:'top',away_index:0}},controls:[{team_id:'brothers',active_mode:'player'}],own_motion:{role:'fielder',selected_position:'SS',direction_x:-1,direction_z:0,atbat_key:'1:top:0'}};
+ assert.deepEqual(makeLiveSceneState(data,'brothers').liveFielders.SS,[-17,-30]);
+ assert.deepEqual(makeLiveSceneState({...data,controls:[]},'brothers').liveFielders,{});
+ assert.deepEqual(makeLiveSceneState({...data,own_motion:{...data.own_motion,atbat_key:'1:top:1'}},'brothers').liveFielders,{});
+});
