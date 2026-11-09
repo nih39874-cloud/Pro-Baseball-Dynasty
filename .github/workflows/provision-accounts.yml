@@ -1,6 +1,10 @@
 name: Provision Diamond Dynasty game accounts
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/account-provision-request.txt'
 permissions:
   contents: read
 jobs:
