@@ -5,7 +5,7 @@ const root=document.querySelector('#app');
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
 const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,
-  search:'',filter:'all',gameTab:'schedule',selectedOpponent:'brothers',notice:'',loading:false,loginUser:'GM'};
+  search:'',filter:'all',gameTab:'schedule',selectedOpponent:'brothers',openingMode:false,openingIds:null,notice:'',loading:false,loginUser:'GM'};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const fmt=n=>Number(n??0).toLocaleString('zh-TW');
 const gm=()=>state.session?.role==='gm';
@@ -37,11 +37,23 @@ function home(){
 }
 function roster(){
  if(!state.roster)return empty('球員資料讀取中');
- const all=state.roster.players||[];
- const currentActive=all.filter(p=>p.roster_status==='active').length;
+ const d=state.roster,all=d.players||[],currentActive=all.filter(p=>p.roster_status==='active').length;
+ const pending=d.phase==='pending'&&!d.season_finished;
+ const seasonClosed=d.season_finished||['offseason','finished','completed','complete','ended','season_end'].includes(d.phase);
+ const moveEnabled=!pending&&!seasonClosed;
+ const eligible=all.filter(p=>['active','reserve'].includes(p.roster_status));
  const selected=all.filter(p=>state.filter==='all'||(state.filter==='active'?p.roster_status==='active':p.roster_status==='reserve'));
  const list=selected.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
  const tabs=[['all','全部'],['active','一軍'],['reserve','二軍']];
+ if(state.openingMode&&pending){
+  const selectedIds=state.openingIds||[];
+  const rows=eligible.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
+  return '<div class="compact-summary"><div><small>開季球季</small><b>'+escape(d.year)+'</b></div><div><small>已選球員</small><b>'+selectedIds.length+'/28</b></div><div><small>開季狀態</small><b>'+(d.opening_roster?.source==='manual'?'已提交':'預設名單')+'</b></div></div>'+
+   '<div class="roster-tip">開季前一次選擇 28 人；未提交就沿用上季季末一軍名單（不含已離隊球員）。</div>'+
+   '<div class="inline-search"><input id="filter-players" placeholder="搜尋可選球員" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
+   '<div class="list-scroller">'+rows.map(p=>'<button class="list-row opening-row '+(selectedIds.includes(p.master_player_id)?'checked':'')+'" data-opening-toggle="'+p.master_player_id+'"><span class="selection-indicator">'+(selectedIds.includes(p.master_player_id)?'✓':'○')+'</span><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(p.roster_status==='active'?'上季一軍':'二軍')+'</small></span></button>').join('')+'</div>'+
+   '<div class="roster-actions"><button class="secondary-action" data-action="cancel-opening">返回</button><button class="primary-action" data-action="save-opening" '+(selectedIds.length===Math.min(28,eligible.length)?'':'disabled')+'>確認開季名單</button></div>';
+ }
  const line=p=>{
   const active=p.roster_status==='active',reserve=p.roster_status==='reserve';
   const availableAt=reserve&&p.promotion_available_at?new Date(p.promotion_available_at).getTime():0;
@@ -51,12 +63,14 @@ function roster(){
   const action=active?'下二軍':reserve?'升一軍':null;
   const label=cooldown?'冷卻至 '+new Date(availableAt).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}):full?'一軍已滿':action;
   return '<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(active?'一軍':reserve?'二軍／預備':'其他狀態')+'</small></button>'+
-  (action?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
+   (action&&moveEnabled?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
  };
+ const notice=pending?'開季名單準備期間：一般升降已停用，可重新選擇開季 28 人。':seasonClosed?'本球季已結束：一軍／二軍升降停用，等待下季選名單。':'降二軍後 4 小時才能再升一軍；升一軍後可立即下放。';
  return '<div class="compact-summary"><div><small>全部球員</small><b>'+all.length+'</b></div><div><small>一軍名單</small><b>'+currentActive+'/28</b></div><div><small>季末上限</small><b>60</b></div></div>'+
+ (pending?'<button class="opening-entry" data-action="open-opening"><span>開季 28 人名單</span><strong>'+(d.opening_roster?.source==='manual'?'已提交 · 可修改':'預設沿用上季')+' ›</strong></button>':'')+
  '<div class="switch-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+'</button>').join('')+'</div>'+
  '<div class="inline-search"><input id="filter-players" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
- '<div class="roster-tip">降二軍後 4 小時才能再升一軍；升一軍後可隨時下放。一軍最多 28 人。</div>'+
+ '<div class="roster-tip">'+notice+'</div>'+
  '<div class="list-scroller">'+list.map(line).join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
 }
 function coach(){
@@ -134,7 +148,7 @@ async function load(){
  render();
 }
 function goto(page){
- state.page=page;state.view='';state.search='';state.filter='all';state.notice='';
+ state.page=page;state.view='';state.search='';state.filter='all';state.openingMode=false;state.openingIds=null;state.notice='';
  if(page==='observe'&&!gm()){state.page='home';return render();}
  render();void load();
 }
@@ -145,10 +159,14 @@ root.addEventListener('click',async e=>{
  if(b.dataset.gametab){state.gameTab=b.dataset.gametab;render();return;}
  if(b.dataset.view){state.view=state.view===b.dataset.view?'':b.dataset.view;render();return;}
  if(b.dataset.player){openPlayer(Number(b.dataset.player));return;}
+ if(b.dataset.openingToggle){const id=Number(b.dataset.openingToggle);const selected=state.openingIds||[];state.openingIds=selected.includes(id)?selected.filter(x=>x!==id):selected.length<28?[...selected,id]:selected;render();return;}
  if(b.dataset.sign){openSign(Number(b.dataset.sign));return;}
  if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？降二軍後需等待 4 小時才能升回一軍。'))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice=to==='active'?'已升上一軍，可隨時再降二軍。':'已下放二軍，4 小時後可再升一軍。';render();}catch(err){state.notice=err.message;render()}return;}
  const action=b.dataset.action;
- if(action==='logout'){await signOut();state.session=null;state.notice='';render();}
+ if(action==='open-opening'){state.openingMode=true;state.openingIds=[...(state.roster?.opening_roster?.player_ids||state.roster?.players?.filter(p=>p.roster_status==='active').map(p=>p.master_player_id)||[])].slice(0,28);state.search='';render();}
+ else if(action==='cancel-opening'){state.openingMode=false;state.search='';render();}
+ else if(action==='save-opening'){try{await apiCall('first-team-save',{team_id:ownTeam(),player_ids:state.openingIds||[]});state.roster=await apiCall('roster',{team_id:ownTeam()});state.openingMode=false;state.search='';state.notice='新球季一軍名單已提交，開季前仍可修改。';render();}catch(err){state.notice=err.message||'名單提交失敗';render();}}
+ else if(action==='logout'){await signOut();state.session=null;state.notice='';render();}
  else if(action==='refresh'){void load();}
  else if(action==='close-modal'){state.modal=null;render();}
  else if(action==='search-roster'){state.search=root.querySelector('#filter-players')?.value.trim()||'';render();}
