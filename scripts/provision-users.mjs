@@ -8,7 +8,7 @@ const raw=process.env.DIAMOND_ACCOUNT_PASSWORDS;
 if(!url||!key||!raw)throw Error('Missing provisioning environment secrets');
 const credentials=JSON.parse(raw);
 const authPassword=(username,pin)=>username==='GM'?pin:`DD${pin}`; // Supabase Auth requires at least 6 characters; UI still accepts 4-digit team PINs.
-const entries=[['GM',null,'gm','official'],['brothers','brothers','manager','official'],['dragons','dragons','manager','official'],['unilions','unilions','manager','official'],['guardians','guardians','manager','official'],['rakuten','rakuten','manager','official'],['TSG','TSG','manager','official']];
+const entries=[['GM',null,'gm','gm'],['brothers','brothers','manager','official'],['dragons','dragons','manager','official'],['unilions','unilions','manager','official'],['guardians','guardians','manager','official'],['rakuten','rakuten','manager','official'],['TSG','TSG','manager','official']];
 // New sb_secret_ API keys authenticate through apikey, not a Bearer JWT.
 const heads={apikey:key,'Content-Type':'application/json'};
 if(!key.startsWith('sb_secret_'))heads.Authorization=`Bearer ${key}`;
@@ -24,7 +24,7 @@ for(const [username] of entries){
 }
 const leagues=await api('/rest/v1/leagues?select=id,kind');
 const byKind=Object.fromEntries(leagues.map(l=>[l.kind,l.id]));
-if(!byKind.official)throw Error('Missing official league record');
+if(!byKind.official||!byKind.gm)throw Error('Missing official or GM parallel league record');
 let existing=[];
 for(let page=1;page<=20;page++){
  const result=await api(`/auth/v1/admin/users?page=${page}&per_page=100`);
