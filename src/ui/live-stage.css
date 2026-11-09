@@ -1,0 +1,25 @@
+/* 3D synchronized match view: the existing stadium canvas stays mounted; no per-frame network calls. */
+#app.live-mode #scoreboard,#app.live-mode #modeBar,#app.live-mode #infoLeft,#app.live-mode #actionArea,
+#app.live-mode #bottomStatus,#app.live-mode #aimOverlay,#app.live-mode #joystick,#app.live-mode #meter,
+#app.live-mode #fieldChoice{display:none!important}
+#modal.live-immersive{pointer-events:none;background:transparent;backdrop-filter:none;justify-content:flex-end;align-items:flex-start;padding:0}
+#modal.live-immersive .modal-panel{pointer-events:auto;position:absolute;right:max(7px,env(safe-area-inset-right));top:calc(54px + env(safe-area-inset-top));
+ max-width:none;width:clamp(285px,43vw,610px);max-height:calc(100dvh - 61px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+ overflow:auto;overscroll-behavior:contain;touch-action:pan-y;padding:12px 14px;
+ background:linear-gradient(160deg,rgba(8,28,42,.95),rgba(7,23,36,.88));
+ box-shadow:0 9px 25px #0008;border:1px solid rgba(131,204,199,.55)}
+#modal.live-immersive .modal-panel h2{font-size:16px}
+#modal.live-immersive .modal-panel .live-game-list{max-height:64px;overflow:auto}
+#modal.live-immersive .modal-panel .live-overlay{font-size:12px}
+#modal.live-immersive .modal-panel .live-events{max-height:76px;overflow-y:auto}
+#modal.live-immersive .modal-panel .live-player-controls{padding:8px;margin-top:8px}
+#modal.live-immersive .modal-panel .live-aim-pad{width:130px;height:125px;flex-basis:130px}
+#modal.live-immersive .modal-panel .live-pad-wrap small{max-width:115px}
+.live-stage-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:9px 0}
+.live-stage-buttons .btn{padding:8px 11px}
+@media (max-width:840px) and (orientation:landscape){
+ #modal.live-immersive .modal-panel{width:48vw;min-width:255px;top:48px;max-height:calc(100dvh - 54px);padding:8px}
+ #modal.live-immersive .modal-panel .live-pad-wrap small{display:none}
+ #modal.live-immersive .modal-panel .live-game-list{max-height:44px}
+}
+@media (prefers-reduced-motion:reduce){#modal.live-immersive .live-meter-needle{animation-duration:2s}}
