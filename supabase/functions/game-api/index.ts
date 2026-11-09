@@ -125,6 +125,32 @@ Deno.serve(async (req: Request) => {
       const {data,error}=await db.rpc('server_gm_simulate_games',{p_actor:user.id,p_count:count});
       return error?fail(req,error.message,409):json(req,{ok:true,simulation:data});
     }
+    if (action === 'trade-board') {
+      if(isGM)return fail(req,'OFFICIAL_MANAGERS_ONLY',403);
+      const [players,offers]=await Promise.all([
+        db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,players_master(full_name,primary_position,source_year)')
+          .eq('league_id',league.id).eq('roster_status','reserve').limit(500),
+        db.from('trade_offers').select('id,proposer_team_id,target_team_id,offered_player_id,requested_player_id,status,created_at,resolved_at')
+          .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).order('created_at',{ascending:false}).limit(150)
+      ]);
+      if(players.error||offers.error)return fail(req,'TRADE_BOARD_READ_FAILED',503);
+      return json(req,{ok:true,...responseBase,
+        candidates:players.data||[],offers:(offers.data||[]).filter(x=>x.proposer_team_id===pickTeam||x.target_team_id===pickTeam)});
+    }
+    if (action === 'trade-offer') {
+      if(isGM)return fail(req,'OFFICIAL_MANAGERS_ONLY',403);
+      const offered=Number(body.offered_player_id),requested=Number(body.requested_player_id);
+      need(Number.isSafeInteger(offered)&&offered>0&&Number.isSafeInteger(requested)&&requested>0,'INVALID_PLAYERS');
+      const {data,error}=await db.rpc('server_propose_trade',{p_actor:user.id,p_offered:offered,p_requested:requested});
+      return error?fail(req,error.message,409):json(req,{ok:true,offer_id:data});
+    }
+    if (action === 'trade-respond') {
+      if(isGM)return fail(req,'OFFICIAL_MANAGERS_ONLY',403);
+      const offerId=String(body.offer_id||'');
+      need(/^[a-f0-9-]{36}$/i.test(offerId)&&typeof body.accept==='boolean','INVALID_TRADE_RESPONSE');
+      const {data,error}=await db.rpc('server_respond_trade',{p_actor:user.id,p_offer:offerId,p_accept:body.accept});
+      return error?fail(req,error.message,409):json(req,{ok:true,status:data});
+    }
     if (action === 'gm-market') {
       if(!isGM)return fail(req,'GM_ONLY',403);
       const {data,error}=await db.from('league_players')
