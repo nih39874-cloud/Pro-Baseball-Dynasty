@@ -42,7 +42,7 @@ export function parseGlbGeometry(buffer){
   for(let j=0;j<3;j++)for(let i=0;i<3;i++)q[j*4+i]*=s[j];
   return q;
  }
- const points=[],colors=[];
+ const points=[],colors=[],normals=[];
  function walk(index,parent){
   const node=json.nodes[index],matrix=product(parent,local(node));
   if(node.mesh!==undefined){
@@ -51,6 +51,7 @@ export function parseGlbGeometry(buffer){
     const pAccessor=json.accessors[primitive.attributes.POSITION];
     if(!pAccessor)continue;
     const pos=accessor(primitive.attributes.POSITION);
+    const normal=primitive.attributes.NORMAL!==undefined?accessor(primitive.attributes.NORMAL):null;
     const idx=primitive.indices!==undefined?accessor(primitive.indices):null;
     const count=idx?json.accessors[primitive.indices].count:pAccessor.count;
     const mat=json.materials?.[primitive.material],base=mat?.pbrMetallicRoughness?.baseColorFactor||[.7,.72,.75,1];
@@ -62,6 +63,16 @@ export function parseGlbGeometry(buffer){
                 matrix[2]*v[0]+matrix[6]*v[1]+matrix[10]*v[2]+matrix[14]];
      if(!xyz.every(Number.isFinite))throw Error('Non-finite model vertex');
      points.push(...xyz);colors.push(base[0],base[1],base[2],isJersey?1:0);
+     if(normal){
+      const n=normal(j);
+      // Inverse-transpose of the node transform, preserving Blender smooth vertex normals.
+      const a=matrix[0],b=matrix[4],c=matrix[8],d=matrix[1],e=matrix[5],f=matrix[9],g=matrix[2],h=matrix[6],k=matrix[10];
+      const nx=(e*k-f*h)*n[0]+(f*g-d*k)*n[1]+(d*h-e*g)*n[2];
+      const ny=(c*h-b*k)*n[0]+(a*k-c*g)*n[1]+(b*g-a*h)*n[2];
+      const nz=(b*f-c*e)*n[0]+(c*d-a*f)*n[1]+(a*e-b*d)*n[2];
+      const length=Math.hypot(nx,ny,nz)||1;
+      normals.push(nx/length,ny/length,nz/length);
+     }else normals.push(0,0,0);
     }
    }
   }
@@ -70,7 +81,7 @@ export function parseGlbGeometry(buffer){
  const scene=json.scenes?.[json.scene||0]||{nodes:json.nodes.map((_,i)=>i)};
  for(const node of scene.nodes||[])walk(node,identity);
  if(!points.length)throw Error('GLB contains no triangles');
- return {positions:new Float32Array(points),colors:new Float32Array(colors),triangleCount:points.length/9};
+ return {positions:new Float32Array(points),colors:new Float32Array(colors),normals:new Float32Array(normals),triangleCount:points.length/9};
 }
 export function appendGlbActor(mesh,asset,x,z,teamColor=[.25,.3,.35],scale=1){
  const p=asset.positions,c=asset.colors;
