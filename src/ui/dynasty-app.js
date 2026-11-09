@@ -4,7 +4,7 @@ import {signIn,signOut,apiCall,getSessionMetadata} from '../backend/auth.js';
 const root=document.querySelector('#app');
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
-const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,diagnostics:null,gmBusy:false,seasonStats:null,awards:null,statTab:'batters',
+const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,diagnostics:null,gmBusy:false,seasonStats:null,awards:null,statTab:'batters',tradeBoard:null,tradeTargetTeam:null,
   search:'',filter:'all',gameTab:'schedule',marketTab:'available',selectedOpponent:'brothers',openingMode:false,openingIds:null,lineupDraft:null,lineupTab:'batting',lineupPicker:null,notice:'',loading:false,loginUser:'GM'};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const fmt=n=>Number(n??0).toLocaleString('zh-TW');
@@ -149,11 +149,39 @@ function market(){
  const all=gm()?(state.gmMarket?.players||[]):(state.fa?.players||[]);
  const current=gm()?all.filter(p=>state.marketTab==='own'?p.team_id===ownTeam():p.team_id!==ownTeam()):all;
  const list=current.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
- return '<div class="market-hero"><span>PLAYER MARKET // '+escape(state.session?.year||'2024')+'</span><b>'+(gm()?'平行宇宙 · 即時交易':'自由球員競價市場')+'</b><small>'+(gm()?'在自己的平行球團自由簽人，不影響正式六隊':'球員提出報價後，依聯盟週期結算')+'</small></div>'+
+ return (gm()?'':'<button class="opening-entry" data-page="trades"><span>六隊球員交易提案</span><strong>提出／接受交易 ›</strong></button>')+'<div class="market-hero"><span>PLAYER MARKET // '+escape(state.session?.year||'2024')+'</span><b>'+(gm()?'平行宇宙 · 即時交易':'自由球員競價市場')+'</b><small>'+(gm()?'在自己的平行球團自由簽人，不影響正式六隊':'球員提出報價後，依聯盟週期結算')+'</small></div>'+
  (gm()?'<div class="switch-tabs"><button data-markettab="available" class="'+(state.marketTab==='available'?'selected':'')+'">市場球員</button><button data-markettab="own" class="'+(state.marketTab==='own'?'selected':'')+'">本隊續約</button></div>':'')+
  '<div class="inline-search"><input id="filter-market" placeholder="搜尋姓名 / 球員" value="'+escape(state.search)+'"><button data-action="search-market">搜尋</button></div>'+
  '<div class="list-scroller market-rows">'+list.slice(0,220).map(p=>'<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+escape(gm()?tname(p.team_id):'自由身分')+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></span><button class="mini" data-sign="'+p.master_player_id+'">'+(gm()?(p.team_id===ownTeam()?'續約':'簽入'):'報價')+'</button></div>').join('')+(list.length?'':empty('此分類暫時沒有符合條件的球員'))+'</div>';
 }
+
+function trades(){
+ if(gm())return empty('GM 獨立沙盒不參與正式六隊交易');
+ const board=state.tradeBoard;
+ if(!board)return empty('正在讀取交易市場');
+ const candidates=board.candidates||[],offers=board.offers||[];
+ const ownTeamId=ownTeam();
+ const teamOptions=TEAMS.filter(t=>t.id!==ownTeamId);
+ const target=teamOptions.some(t=>t.id===state.tradeTargetTeam)?state.tradeTargetTeam:teamOptions[0]?.id;
+ if(!state.tradeTargetTeam)state.tradeTargetTeam=target;
+ const mine=candidates.filter(p=>p.team_id===ownTeamId);
+ const theirs=candidates.filter(p=>p.team_id===target);
+ const map=new Map(candidates.map(p=>[Number(p.master_player_id),p]));
+ const selectedName=id=>escape(map.get(Number(id))?.players_master?.full_name||'球員 '+id);
+ const offerRows=offers.map(o=>{
+   const received=o.target_team_id===ownTeamId, pending=o.status==='pending';
+   return '<div class="trade-offer-row"><div><small>'+escape(received?'對方提案 · '+tname(o.proposer_team_id):'我方提案 · '+tname(o.target_team_id))+'</small><b>'+selectedName(o.offered_player_id)+' ⇄ '+selectedName(o.requested_player_id)+'</b><small>'+escape({pending:'待回覆',accepted:'交易完成',rejected:'已拒絕',cancelled:'已取消'}[o.status]||o.status)+'</small></div>'+
+    (pending?'<div class="trade-decision">'+(received?'<button data-trade-id="'+o.id+'" data-trade-accept="true">接受</button>':'')+'<button data-trade-id="'+o.id+'" data-trade-accept="false">'+(received?'拒絕':'取消')+'</button></div>':'')+'</div>';
+ }).join('');
+ return '<div class="market-hero"><span>TRADE CENTER // OFFICIAL LEAGUE</span><b>六隊交易室</b><small>交易提案由對方球隊經理核准；目前僅開放預備／二軍球員一換一，避免一軍 28 人數失衡。</small></div>'+
+ '<div class="trade-form"><form id="trade-form"><label>想向哪支球隊交易？</label><select id="trade-target-team">'+teamOptions.map(t=>'<option value="'+t.id+'" '+(t.id===target?'selected':'')+'>'+t.name+'</option>').join('')+'</select>'+
+ '<label>我方提出的二軍球員</label><select name="offered" required>'+mine.map(p=>'<option value="'+p.master_player_id+'">'+escape(p.players_master?.full_name||p.master_player_id)+' · '+escape(p.players_master?.primary_position||'—')+'</option>').join('')+'</select>'+
+ '<label>想交換對方的二軍球員</label><select name="requested" required>'+theirs.map(p=>'<option value="'+p.master_player_id+'">'+escape(p.players_master?.full_name||p.master_player_id)+' · '+escape(p.players_master?.primary_position||'—')+'</option>').join('')+'</select>'+
+ '<button type="submit" '+(!mine.length||!theirs.length?'disabled':'')+'>送出交易提案</button></form></div>'+
+ '<div class="finance-section-head"><b>我的交易提案</b><small>'+offers.length+' 筆</small></div>'+
+ '<div class="list-scroller trade-history">'+(offerRows||empty('目前尚無交易紀錄'))+'</div>';
+}
+
 function finance(){
  const data=state.session||{},f=data.finances?.find(x=>x.team_id===ownTeam()),r=data.roster_summary||{},m=data.monthly_finance||{};
  const cash=Number(f?.cash_ntd||0),events=data.finance_entries||[];
@@ -244,8 +272,8 @@ function openSign(id){
 }
 function render(){
  if(!state.session){root.innerHTML=login();return;}
- const labels={home:'球團總部',roster:'球員名單',coach:'戰術設定',season:'賽程戰績',market:'自由球員',finance:'財務合約',club:'球團資訊',observe:'正式六隊狀況',lab:'GM 測試中心',stats:'本季球員成績',awards:'歷年年度獎項'};
- const body={home,roster,coach,season,market,finance,club,observe,lab,stats:teamStats,awards}[state.page]();
+ const labels={home:'球團總部',roster:'球員名單',coach:'戰術設定',season:'賽程戰績',market:'自由球員',finance:'財務合約',club:'球團資訊',observe:'正式六隊狀況',lab:'GM 測試中心',stats:'本季球員成績',awards:'歷年年度獎項',trades:'聯盟交易室'};
+ const body={home,roster,coach,season,market,finance,club,observe,lab,stats:teamStats,awards,trades}[state.page]();
  const c=teamMap[ownTeam()]?.color||'#d0aa64';
  root.style.setProperty('--team',c);
  root.innerHTML=top()+'<main class="main"><div class="page-head"><h2>'+labels[state.page]+'</h2><button type="button" class="tiny-button" data-action="refresh">⟳</button></div>'+(state.notice?'<div class="notice" role="status">'+escape(state.notice)+'</div>':'')+'<div class="page-body">'+body+'</div></main>'+bottom()+modal();
@@ -260,6 +288,7 @@ async function load(){
  else if(state.page==='lab'&&gm())state.diagnostics=await apiCall('gm-diagnostics');
  else if(state.page==='stats')state.seasonStats=await apiCall('team-stats');
  else if(state.page==='awards')state.awards=await apiCall('awards');
+ else if(state.page==='trades'&&!gm())state.tradeBoard=await apiCall('trade-board');
  state.notice='';
  }catch(e){state.notice=e.message||'讀取失敗';}
  render();
@@ -267,6 +296,7 @@ async function load(){
 function goto(page){
  state.page=page;state.lineupDraft=null;state.lineupPicker=null;state.view='';state.search='';state.filter='all';state.openingMode=false;state.openingIds=null;state.notice='';
  if((page==='observe'||page==='lab')&&!gm()){state.page='home';return render();}
+ if(page==='trades'&&gm()){state.page='market';return render();}
  render();void load();
 }
 root.addEventListener('click',async e=>{
@@ -287,6 +317,10 @@ root.addEventListener('click',async e=>{
   return;
  }
 
+ if(b.dataset.tradeId){
+   if(!confirm('確定'+(b.dataset.tradeAccept==='true'?'接受':'拒絕／取消')+'這筆球員交易？'))return;
+   try{await apiCall('trade-respond',{offer_id:b.dataset.tradeId,accept:b.dataset.tradeAccept==='true'});state.tradeBoard=await apiCall('trade-board');state.notice='交易提案已處理';render();}catch(err){state.notice=err.message||'交易操作失敗';render();}return;
+ }
  if(b.dataset.lineupTab){state.lineupTab=b.dataset.lineupTab;render();return;}
  if(b.dataset.statTab){state.statTab=b.dataset.statTab;render();return;}
  if(b.dataset.orderUp!==undefined||b.dataset.orderDown!==undefined){const index=Number(b.dataset.orderUp??b.dataset.orderDown),other=index+(b.dataset.orderUp!==undefined?-1:1),order=state.lineupDraft?.order||[];if(other>=0&&other<order.length){[order[index],order[other]]=[order[other],order[index]];state.lineupDraft.dirty=true;}render();return;}
@@ -352,6 +386,7 @@ root.addEventListener('click',async e=>{
  else if(action==='suggest'){try{const r=await apiCall('coach-default',{team_id:ownTeam()});state.notice='建議打線已取得。打序編輯功能仍在整合中。';render();}catch(err){state.notice=err.message;render()}}
 });
 root.addEventListener('change',e=>{
+ if(e.target.id==='trade-target-team'){state.tradeTargetTeam=e.target.value;render();}
  if(e.target.id==='opponent'){state.selectedOpponent=e.target.value;state.lineupDraft=null;render();}
  if(e.target.name==='user'){state.loginUser=e.target.value;}
 });
@@ -365,6 +400,13 @@ root.addEventListener('submit',async e=>{
   try{const result=await signIn(username,pin);state.session=result.status;state.page='home';}
   catch(err){state.notice=err.message||'登入失敗'}
   finally{state.loading=false;render()}
+ } else if(f.id==='trade-form'){
+  try{
+   const offered=Number(f.elements.offered.value),requested=Number(f.elements.requested.value);
+   await apiCall('trade-offer',{offered_player_id:offered,requested_player_id:requested});
+   state.tradeBoard=await apiCall('trade-board');
+   state.notice='交易提案已送出，等待對方球隊經理回覆';
+  }catch(err){state.notice=err.message||'提案失敗';}render();
  } else if(f.id==='sign-form'){
   const playerId=Number(f.elements.player.value),salary=Number(f.elements.salary.value),years=Number(f.elements.years.value);
   if(!Number.isSafeInteger(salary)||salary<70000||salary>50000000||years<1||years>5){state.notice='請輸入合法薪資與年限';state.modal=null;render();return;}
