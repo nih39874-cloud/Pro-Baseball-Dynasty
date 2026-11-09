@@ -151,7 +151,21 @@ function buildStatic(){
  return b;
 }
 export class StadiumScene{
- constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();}
+ constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.staticMesh=buildStatic();this.staticGpu=this.uploadMesh(this.staticMesh,gl.STATIC_DRAW);this.cameraYaw=0;this.setupAvatars();}
+ uploadMesh(mesh,usage){
+  const gl=this.gl,positions=gl.createBuffer(),colors=gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,positions);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.p),usage);
+  gl.bindBuffer(gl.ARRAY_BUFFER,colors);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(mesh.c),usage);
+  return {positions,colors,count:mesh.p.length/3};
+ }
+ drawMesh(buffers){
+  const gl=this.gl;
+  gl.bindBuffer(gl.ARRAY_BUFFER,buffers.positions);
+  gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aPos);
+  gl.bindBuffer(gl.ARRAY_BUFFER,buffers.colors);
+  gl.vertexAttribPointer(this.aCol,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aCol);
+  gl.drawArrays(gl.TRIANGLES,0,buffers.count);
+ }
  renderRemote(data,teamId,now){
   if(!this.liveReplay)this.liveReplay=new LiveReplay();
   this.liveReplay.ingest(data,now);
@@ -173,7 +187,7 @@ export class StadiumScene{
     this.avatarTeams.set(team,{players,lineup,batters});}
   }).catch(()=>{/* Real roster assets are optional in the offline practice scene. */});}
  render(state,now){const gl=this.gl,canvas=this.canvas;const w=Math.min(2200,Math.max(1,canvas.clientWidth*devicePixelRatio)),h=Math.min(1300,Math.max(1,canvas.clientHeight*devicePixelRatio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;if(gl)gl.viewport(0,0,w,h)}
- if(gl){gl.clearColor(.055,.12,.16,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}const b=new MeshBuffer();b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();
+ if(gl){gl.clearColor(.055,.12,.16,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}const b=new MeshBuffer();if(!gl){b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();}
  const defending=state.half==='top'?state.home:state.visitor;const dteam=TEAMS.find(t=>t.id===defending)||TEAMS[0];const ateam=TEAMS.find(t=>t.id!==(state.half==='top'?state.home:state.visitor)&&t.id===(state.half==='top'?state.visitor:state.home))||TEAMS[1];
  FIELDERS.forEach((f,i)=>{const pos=state.liveFielders?.[f.key]||(state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos);
    const person=this.avatarTeams.get(defending)?.lineup?.[i],key=person?.id||`${defending}:${f.key}`;
@@ -239,9 +253,10 @@ export class StadiumScene{
  const matrix=multiply(perspective(deg(role==='auto'?65:70),w/h,.08,440),lookAt(eye,target));
  if(!gl){this.renderSoftware(b,matrix,w,h,now);return;}
  gl.useProgram(this.program);gl.uniformMatrix4fv(this.vp,false,matrix);
- const buf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(b.p),gl.DYNAMIC_DRAW);gl.vertexAttribPointer(this.aPos,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aPos);
- const color=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,color);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(b.c),gl.DYNAMIC_DRAW);gl.vertexAttribPointer(this.aCol,3,gl.FLOAT,false,0,0);gl.enableVertexAttribArray(this.aCol);
- gl.drawArrays(gl.TRIANGLES,0,b.p.length/3);gl.deleteBuffer(buf);gl.deleteBuffer(color);
+ this.drawMesh(this.staticGpu);
+ const dynamic=this.uploadMesh(b,gl.STREAM_DRAW);
+ this.drawMesh(dynamic);
+ gl.deleteBuffer(dynamic.positions);gl.deleteBuffer(dynamic.colors);
  }
  renderSoftware(b,m,w,h,now){
   if(this.lastSoftware&&now-this.lastSoftware<90)return;
