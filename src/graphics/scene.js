@@ -235,7 +235,11 @@ export class StadiumScene{
  if(state.ball&&state.ball.visible!==false){
   const v=state.ball;
   const highlighted=state.phase==='fielding';
-  b.sphere(v.x,v.y,v.z,highlighted?.34:.18,[1,.99,.93],12);
+  b.sphere(v.x,v.y,v.z,highlighted?.34:.235,[1,.99,.93],12);
+  if(state.phase==='pitching'){
+   // Subtle bright perimeter makes the pitch distinguishable from sky/jerseys.
+   b.sphere(v.x,v.y,v.z,.255,[.93,.78,.34],9);
+  }
   if(highlighted){
    b.sphere(v.x,v.y,v.z,.43,[.94,.70,.24],8);
    b.cylinder(v.x,.08,v.z,.42,.026,[.95,.88,.57],14);
@@ -251,8 +255,8 @@ export class StadiumScene{
  if(state.mode==='coach'){b.cylinder(state.coachPos.x,0,state.coachPos.z,.25,.05,[.8,.6,.3]);}
  const role=currentRole(state);let eye,target;
  if(role==='coach'){eye=[state.coachPos.x,1.65,state.coachPos.z];target=[eye[0]+Math.sin(this.cameraYaw)*8,1.62,eye[2]-Math.cos(this.cameraYaw)*8];}
- else if(role==='pitcher'){eye=[0,1.7,-16.2];target=[state.aim.x*.2,1.1,0];}
- else if(role==='batter'){eye=[0,1.55,4.3];target=[0,1.0,-20];}
+ else if(role==='pitcher'){eye=[.75,1.78,-16.1];target=[state.aim.x*.2,1.12,0];}
+ else if(role==='batter'){eye=[2.75,1.72,2.5];target=[0,1.16,-18.0];}
  else if(role==='auto'){eye=[24,16,22];target=[0,0.5,-30];}
  else{eye=[-4,4,4];target=[0,0,-29];}
  if((state.phase==='fielding'||state.phase==='fielderChoice')&&role!=='coach'&&role!=='auto'){
@@ -266,7 +270,7 @@ export class StadiumScene{
    eye=[fx,9,fz+15];target=[focusX,Math.max(1.1,(state.ball?.y||0)*.55),focusZ];
   }
  }
- const matrix=multiply(perspective(deg(role==='auto'?65:70),w/h,.08,440),lookAt(eye,target));
+ const matrix=multiply(perspective(deg(role==='auto'?65:role==='batter'?54:70),w/h,.08,440),lookAt(eye,target));
  if(!gl){this.renderSoftware(b,matrix,w,h,now);return;}
  gl.useProgram(this.program);gl.uniformMatrix4fv(this.vp,false,matrix);
  this.drawMesh(this.staticGpu);
