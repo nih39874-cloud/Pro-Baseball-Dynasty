@@ -175,6 +175,29 @@ function finance(){
  '<div class="list-scroller finance-transactions">'+events.map(e=>'<div class="finance-transaction"><div><b>'+escape(types[e.kind]||e.kind)+'</b><small>'+toDate(e.created_at)+'</small></div><strong class="'+(Number(e.amount_ntd)>=0?'positive':'negative')+'">'+(Number(e.amount_ntd)>=0?'+':'−')+'NT$ '+fmt(Math.abs(Number(e.amount_ntd||0)))+'</strong></div>').join('')+(events.length?'':empty('尚無收支紀錄'))+'</div>'+
  '<div class="finance-explain">每 10 場例行賽代表一個遊戲月份，球季共 12 個月。固定支出與每場球賽收支分開計算；資金不足轉為負債。票價、雜支和球場維護費均為遊戲估值。</div>';
 }
+
+function teamStats(){
+ const all=state.seasonStats?.players||[];
+ const pitchers=all.filter(x=>x.primary_position==='P');
+ const hitters=all.filter(x=>x.primary_position!=='P');
+ const list=state.statTab==='pitchers'?pitchers:hitters;
+ const avg=x=>x.pa>x.walks?'.'+String(Math.round(x.hits/(x.pa-x.walks)*1000)).padStart(3,'0'):'—';
+ const era=x=>x.pitching_outs>0?(x.earned_runs*27/x.pitching_outs).toFixed(2):'—';
+ return '<div class="roster-tip">本球季實際模擬成績；至少打完一場才會有資料。</div>'+
+ '<div class="switch-tabs"><button data-stat-tab="batters" class="'+(state.statTab==='batters'?'selected':'')+'">打擊成績</button><button data-stat-tab="pitchers" class="'+(state.statTab==='pitchers'?'selected':'')+'">投球成績</button></div>'+
+ '<div class="list-scroller">'+list.map(x=>'<div class="stats-player-row"><div><strong>'+escape(x.full_name)+'</strong><small>'+escape(x.primary_position||'—')+' · '+x.games+' 場</small></div><div><b>'+(state.statTab==='pitchers'?era(x):avg(x))+'</b><small>'+(state.statTab==='pitchers'?'ERA · K '+x.pitching_strikeouts:'AVG · HR '+x.home_runs+' · RBI '+x.rbi)+'</small></div></div>').join('')+
+ (list.length?'':empty('本季尚無球員出賽成績'))+'</div>'+
+ '<button class="gm-observe-link" data-page="roster">返回球員中心</button>';
+}
+function awards(){
+ const d=state.awards?.awards||[];
+ const awardNames={MVP:'年度最有價值球員',HOME_RUN_KING:'全壘打王',BATTING_CHAMPION:'打擊王',STRIKEOUT_KING:'三振王'};
+ return '<div class="roster-tip">歷年總冠軍及個人獎項將持續累積。</div>'+
+ '<div class="list-scroller">'+d.map(x=>'<div class="stats-player-row"><div><strong>'+escape(x.season_year+' '+(awardNames[x.award_code]||x.award_code))+'</strong><small>'+escape(tname(x.team_id))+'</small></div><div><b>'+escape(x.players_master?.full_name||x.player_id)+'</b></div></div>').join('')+
+ (d.length?'':empty('目前尚未頒發年度獎項'))+'</div>'+
+ '<button class="gm-observe-link" data-page="club">返回球團資料</button>';
+}
+
 function club(){
  const history=(state.session?.champions||[]).map(x=>'<div class="lineup-row"><span>'+escape(x.season_year)+' 年</span><b>'+escape(tname(x.team_id))+'</b></div>').join('');
  return box('球團資訊','<div class="financial-row"><span>所屬球隊</span><b>'+escape(gm()?'GM 平行球團':tname(ownTeam()))+'</b></div><div class="financial-row"><span>遊戲球季</span><b>'+escape(state.session?.year)+'</b></div><div class="financial-row"><span>管理模式</span><b>'+(gm()?'獨立模擬':'六隊真人')+'</b></div>');
@@ -219,8 +242,8 @@ function openSign(id){
 }
 function render(){
  if(!state.session){root.innerHTML=login();return;}
- const labels={home:'球團總部',roster:'球員名單',coach:'戰術設定',season:'賽程戰績',market:'自由球員',finance:'財務合約',club:'球團資訊',observe:'正式六隊狀況',lab:'GM 測試中心'};
- const body={home,roster,coach,season,market,finance,club,observe,lab}[state.page]();
+ const labels={home:'球團總部',roster:'球員名單',coach:'戰術設定',season:'賽程戰績',market:'自由球員',finance:'財務合約',club:'球團資訊',observe:'正式六隊狀況',lab:'GM 測試中心',stats:'本季球員成績',awards:'歷年年度獎項'};
+ const body={home,roster,coach,season,market,finance,club,observe,lab,stats:teamStats,awards}[state.page]();
  const c=teamMap[ownTeam()]?.color||'#d0aa64';
  root.style.setProperty('--team',c);
  root.innerHTML=top()+'<main class="main"><div class="page-head"><h2>'+labels[state.page]+'</h2><button type="button" class="tiny-button" data-action="refresh">⟳</button></div>'+(state.notice?'<div class="notice" role="status">'+escape(state.notice)+'</div>':'')+'<div class="page-body">'+body+'</div></main>'+bottom()+modal();
@@ -233,6 +256,8 @@ async function load(){
  else if(state.page==='market'){if(gm())state.gmMarket=await apiCall('gm-market');else state.fa=await apiCall('free-agents');}
  else if(state.page==='observe'&&gm())state.observer=await apiCall('gm-observe');
  else if(state.page==='lab'&&gm())state.diagnostics=await apiCall('gm-diagnostics');
+ else if(state.page==='stats')state.seasonStats=await apiCall('team-stats');
+ else if(state.page==='awards')state.awards=await apiCall('awards');
  state.notice='';
  }catch(e){state.notice=e.message||'讀取失敗';}
  render();
@@ -261,6 +286,7 @@ root.addEventListener('click',async e=>{
  }
 
  if(b.dataset.lineupTab){state.lineupTab=b.dataset.lineupTab;render();return;}
+ if(b.dataset.statTab){state.statTab=b.dataset.statTab;render();return;}
  if(b.dataset.orderUp!==undefined||b.dataset.orderDown!==undefined){const index=Number(b.dataset.orderUp??b.dataset.orderDown),other=index+(b.dataset.orderUp!==undefined?-1:1),order=state.lineupDraft?.order||[];if(other>=0&&other<order.length){[order[index],order[other]]=[order[other],order[index]];state.lineupDraft.dirty=true;}render();return;}
  if(b.dataset.pickDefense){state.lineupPicker={type:'def',key:b.dataset.pickDefense};render();return;}
  if(b.dataset.choosePlayer!==undefined){
