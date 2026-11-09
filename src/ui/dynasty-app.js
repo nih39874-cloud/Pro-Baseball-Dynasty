@@ -154,11 +154,25 @@ function market(){
  '<div class="list-scroller market-rows">'+list.slice(0,220).map(p=>'<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+escape(gm()?tname(p.team_id):'自由身分')+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></span><button class="mini" data-sign="'+p.master_player_id+'">'+(gm()?(p.team_id===ownTeam()?'續約':'簽入'):'報價')+'</button></div>').join('')+(list.length?'':empty('此分類暫時沒有符合條件的球員'))+'</div>';
 }
 function finance(){
- const f=state.session?.finances?.find(x=>x.team_id===ownTeam()),r=state.session?.roster_summary||{};
- const payroll=Number(r.monthly_payroll_ntd||0),cash=Number(f?.cash_ntd||0);
- return '<div class="finance-arena"><span>FRONT OFFICE // FINANCE</span><small>球團財務中心</small><strong>NT$ '+fmt(cash)+'</strong><p>可運用球團資金</p></div>'+
- '<div class="finance-ledger"><div><small>目前球員月薪總額</small><strong>'+money(payroll)+'</strong><span>一、二軍合計</span></div><div><small>預估全年固定薪資</small><strong>'+money(payroll*12)+'</strong><span>以月薪 × 12 計算</span></div><div><small>負債</small><strong>'+money(f?.debt_ntd)+'</strong><span>目前帳面紀錄</span></div></div>'+
- '<div class="finance-action">'+btn('查看簽約市場','market','◇')+'</div><p class="quiet">目前為遊戲初始 2024 薪資基準。公開報導、薪資整理與遊戲推估已在球員詳細資料區分。'+(gm()?' GM 交易不影響正式球隊。':'')+'</p>';
+ const data=state.session||{},f=data.finances?.find(x=>x.team_id===ownTeam()),r=data.roster_summary||{},m=data.monthly_finance||{};
+ const cash=Number(f?.cash_ntd||0),events=data.finance_entries||[];
+ const income=Number(data.season_game_income_ntd||0);
+ const bills=[
+ ['球員月薪',Number(m.salary_due_ntd||r.monthly_payroll_ntd||0),'薪資合約'],
+ ['球場維護',Number(m.stadium_due_ntd??800000),'草皮、設施及器材維修'],
+ ['教練行政',Number(m.staff_due_ntd??1250000),'教練團、行政及後勤'],
+ ['交通住宿',Number(m.travel_due_ntd??400000),'移動、住宿及補給'],
+ ['訓練設備',Number(m.equipment_due_ntd??350000),'球具、訓練與雜支']
+ ];
+ const monthlyTotal=bills.reduce((a,x)=>a+x[1],0);
+ const types={monthly_player_salary:'球員薪資',monthly_stadium_maintenance:'球場維護',monthly_coach_admin:'教練與行政',monthly_travel:'交通與住宿',monthly_training_equipment:'訓練設備及雜支',annual_salary_reversal:'舊制年薪退還',annual_player_payroll:'舊制全年薪資',home_game_net:'主場賽事淨收入',away_game_media:'客場轉播分潤',sponsor_estimate:'年度贊助收入',gm_adjust:'GM 手動調整',annual_training_cost:'年度訓練費'};
+ return '<div class="finance-arena"><span>FRONT OFFICE // CASH FLOW</span><small>球團可用資金</small><strong>NT$ '+fmt(cash)+'</strong><p>本季已結算 '+escape(data.months_charged||0)+'/12 個遊戲月份</p></div>'+
+ '<div class="finance-kpi-grid"><div><small>每月固定支出</small><strong class="negative">'+money(monthlyTotal)+'</strong><span>一、二軍與營運雜支</span></div><div><small>本季賽事收入</small><strong class="positive">+'+money(income)+'</strong><span>主場淨收入＋客場分潤</span></div></div>'+
+ '<div class="finance-section-head"><b>每月支出明細</b><small>第 '+escape(m.month_no||1)+' 月基準</small></div>'+
+ '<div class="monthly-expenses">'+bills.map(([name,amount,detail])=>'<div class="expense-row"><div><b>'+name+'</b><small>'+detail+'</small></div><strong>−'+money(amount)+'</strong></div>').join('')+'</div>'+
+ '<div class="finance-section-head"><b>近期收支紀錄</b><small>最新 '+events.length+' 筆</small></div>'+
+ '<div class="list-scroller finance-transactions">'+events.map(e=>'<div class="finance-transaction"><div><b>'+escape(types[e.kind]||e.kind)+'</b><small>'+toDate(e.created_at)+'</small></div><strong class="'+(Number(e.amount_ntd)>=0?'positive':'negative')+'">'+(Number(e.amount_ntd)>=0?'+':'−')+'NT$ '+fmt(Math.abs(Number(e.amount_ntd||0)))+'</strong></div>').join('')+(events.length?'':empty('尚無收支紀錄'))+'</div>'+
+ '<div class="finance-explain">每 10 場例行賽代表一個遊戲月份，球季共 12 個月。固定支出與每場球賽收支分開計算；資金不足轉為負債。票價、雜支和球場維護費均為遊戲估值。</div>';
 }
 function club(){
  return box('球團資訊','<div class="financial-row"><span>所屬球隊</span><b>'+escape(gm()?'GM 平行球團':tname(ownTeam()))+'</b></div><div class="financial-row"><span>遊戲球季</span><b>'+escape(state.session?.year)+'</b></div><div class="financial-row"><span>管理模式</span><b>'+(gm()?'獨立模擬':'六隊真人')+'</b></div>');
