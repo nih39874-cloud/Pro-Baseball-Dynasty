@@ -106,3 +106,10 @@ select,input{border:1px solid var(--border);padding:11px;border-radius:8px;backg
 .error{color:#bd3333!important}
 @media(max-height:690px){.top{min-height:57px}.main{padding:8px 12px;gap:7px}.snap-club{padding:8px 11px}.team-mark{height:36px;width:36px}.snap-values>div{padding:7px 11px}.snap-next{padding:6px 11px}.home-menu{gap:6px}.menu-btn{padding:6px 9px}.menu-icon{height:28px;width:28px}.home-footer{min-height:19px}.bottom{height:55px}}
 @media(min-width:651px){#app{border-left:1px solid #e0e7ef;border-right:1px solid #e0e7ef}}
+
+.player-name{flex:1;min-width:0;text-align:left;background:transparent;border:0;padding:2px 0;color:var(--ink)}
+.player-name strong{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-name small{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.roster-action{max-width:112px;white-space:normal;line-height:1.35;font-size:11px}
+.roster-action:disabled{background:#ecf0f3;border-color:#e0e7ec;color:#7a8b99}
+.roster-tip{flex-shrink:0;font-size:11px;color:#547083;background:#e7f0f5;border-radius:8px;padding:7px 9px}
