@@ -14,7 +14,7 @@ function loading(){shell('<main class="center"><div class="brand">◆ 鑽石王�
 function login(){
  shell(`<main class="login-layout"><div class="login-logo">◆</div><h1>鑽石王朝</h1><p>DIAMOND DYNASTY · 永久聯盟</p><form id="login-form" class="login-card">
  <label for="username">帳號</label><select id="username" required><option value="GM">GM · 聯盟管理員</option>${TEAMS.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('')}</select>
- <label for="password">密碼</label><input id="password" type="password" autocomplete="current-password" minlength="4" required placeholder="輸入您的密碼">
+ <label for="password">PIN 碼</label><input id="password" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" minlength="4" maxlength="8" required placeholder="GM 8 碼／球隊 4 碼">
  <button type="submit" class="primary" ${state.busy?'disabled':''}>${state.busy?'登入中…':'登入球團'}</button></form>
  ${state.error?`<p class="alert" role="alert">${esc(state.error)}</p>`:''}<p class="footnote">固定七個帳號：GM + 六支中職球隊。沒有自行註冊功能。</p></main>`);
 }
