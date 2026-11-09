@@ -40,12 +40,12 @@ function roster(){
  const d=state.roster,all=d.players||[],currentActive=all.filter(p=>p.roster_status==='active').length;
  const pending=d.phase==='pending'&&!d.season_finished&&!d.season_started;
  const seasonClosed=d.season_finished||['offseason','finished','completed','complete','ended','season_end'].includes(d.phase);
- const moveEnabled=!pending&&!seasonClosed;
+ const moveEnabled=gm()||(!pending&&!seasonClosed);
  const eligible=all.filter(p=>['active','reserve'].includes(p.roster_status));
  const selected=all.filter(p=>state.filter==='all'||(state.filter==='active'?p.roster_status==='active':p.roster_status==='reserve'));
  const list=selected.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
  const tabs=[['all','全部'],['active','一軍'],['reserve','二軍']];
- if(state.openingMode&&pending){
+ if(state.openingMode&&pending&&!gm()){
   const selectedIds=state.openingIds||[];
   const rows=eligible.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
   return '<div class="compact-summary"><div><small>開季球季</small><b>'+escape(d.year)+'</b></div><div><small>已選球員</small><b>'+selectedIds.length+'/28</b></div><div><small>開季狀態</small><b>'+(d.opening_roster?.source==='manual'?'已提交':'預設名單')+'</b></div></div>'+
@@ -57,7 +57,7 @@ function roster(){
  const line=p=>{
   const active=p.roster_status==='active',reserve=p.roster_status==='reserve';
   const availableAt=reserve&&p.promotion_available_at?new Date(p.promotion_available_at).getTime():0;
-  const cooldown=reserve&&availableAt>Date.now();
+  const cooldown=!gm()&&reserve&&availableAt>Date.now();
   const full=reserve&&currentActive>=28;
   const blocked=cooldown||full;
   const action=active?'下二軍':reserve?'升一軍':null;
@@ -65,9 +65,9 @@ function roster(){
   return '<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(active?'一軍':reserve?'二軍／預備':'其他狀態')+'</small></button>'+
    (action&&moveEnabled?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
  };
- const notice=pending?'目前尚未開賽：請按上方「選擇開季 28 人」，勾選要升一軍的球員。開賽後恢復單人升降按鈕。':seasonClosed?'本球季已結束：一軍／二軍升降停用，等待下季選名單。':'降二軍後 4 小時才能再升一軍；升一軍後可立即下放。';
+ const notice=gm()?'GM 平行測試模式：一、二軍隨時可升降，不受開季、季末與 4 小時冷卻限制；一軍仍限 28 人。':pending?'目前尚未開賽：請按上方「選擇開季 28 人」，勾選要升一軍的球員。開賽後恢復單人升降按鈕。':seasonClosed?'本球季已結束：一軍／二軍升降停用，等待下季選名單。':'降二軍後 4 小時才能再升一軍；升一軍後可立即下放。';
  return '<div class="compact-summary"><div><small>全部球員</small><b>'+all.length+'</b></div><div><small>一軍名單</small><b>'+currentActive+'/28</b></div><div><small>季末上限</small><b>60</b></div></div>'+
- (pending?'<button class="opening-entry" data-action="open-opening"><span>選擇開季 28 人（含升一軍）</span><strong>'+(d.opening_roster?.source==='manual'?'已提交 · 可修改':'預設沿用上季')+' ›</strong></button>':'')+
+ (pending&&!gm()?'<button class="opening-entry" data-action="open-opening"><span>選擇開季 28 人（含升一軍）</span><strong>'+(d.opening_roster?.source==='manual'?'已提交 · 可修改':'預設沿用上季')+' ›</strong></button>':'')+
  '<div class="switch-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+'</button>').join('')+'</div>'+
  '<div class="inline-search"><input id="filter-players" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
  '<div class="roster-tip">'+notice+'</div>'+
@@ -222,7 +222,7 @@ root.addEventListener('click',async e=>{
  if(b.dataset.player){openPlayer(Number(b.dataset.player));return;}
  if(b.dataset.openingToggle){const id=Number(b.dataset.openingToggle);const selected=state.openingIds||[];state.openingIds=selected.includes(id)?selected.filter(x=>x!==id):selected.length<28?[...selected,id]:selected;render();return;}
  if(b.dataset.sign){openSign(Number(b.dataset.sign));return;}
- if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？降二軍後需等待 4 小時才能升回一軍。'))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice=to==='active'?'已升上一軍，可隨時再降二軍。':'已下放二軍，4 小時後可再升一軍。';render();}catch(err){state.notice=err.message;render()}return;}
+ if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？'+(gm()?'GM 測試模式不需要冷卻。':'降二軍後需等待 4 小時才能升回一軍。')))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice=gm()?'GM 測試模式：已完成'+(to==='active'?'升一軍':'降二軍')+'，可立即反向操作。':to==='active'?'已升上一軍，可隨時再降二軍。':'已下放二軍，4 小時後可再升一軍。';render();}catch(err){state.notice=err.message;render()}return;}
  const action=b.dataset.action;
  if(action==='enter-lineup'){state.lineupDraft=draftForOpponent();state.lineupTab='batting';state.view='lineup';render();}
  else if(action==='exit-lineup'){state.view='';state.lineupDraft=null;state.lineupPicker=null;render();}
