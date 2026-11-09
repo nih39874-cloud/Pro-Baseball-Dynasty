@@ -1,4 +1,4 @@
-const CACHE='diamond-dynasty-portrait-v1';
+const CACHE='diamond-dynasty-portrait-v2';
 const FILES=['./index.html','./manifest.webmanifest','./assets/icon.svg','./src/ui/dynasty-app.js','./src/ui/dynasty.css','./src/backend/auth.js','./src/config.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
