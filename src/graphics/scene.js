@@ -42,8 +42,13 @@ export class StadiumScene{
    const byTeam=new Map();for(const p of d.players||[]){if(!byTeam.has(p.team_id))byTeam.set(p.team_id,[]);byTeam.get(p.team_id).push(p);}
    for(const [team,players] of byTeam){const pitchers=players.filter(p=>p.primary_position==='P').sort((a,b)=>(b.pitching_outs_2024||0)-(a.pitching_outs_2024||0));
     const batters=players.filter(p=>p.batting_pa_2024>0).sort((a,b)=>(b.batting_pa_2024||0)-(a.batting_pa_2024||0));
-    const lineup=[];lineup.push(pitchers[0]||players[0]);for(const batter of batters){if(lineup.length>=9)break;if(!lineup.includes(batter))lineup.push(batter);}
-    for(const p of players){if(lineup.length>=9)break;if(!lineup.includes(p))lineup.push(p);}
+    const lineup=[];lineup.push(pitchers[0]||players[0]);
+    const available=players.filter(p=>p!==lineup[0]).sort((a,b)=>(b.batting_pa_2024||0)-(a.batting_pa_2024||0));
+    for(const f of FIELDERS.slice(1)){
+     const samePosition=available.find(p=>p.primary_position===f.key&&!lineup.includes(p));
+     const candidate=samePosition||available.find(p=>!lineup.includes(p));
+     if(candidate)lineup.push(candidate);
+    }
     this.avatarTeams.set(team,{players,lineup,batters});}
   }).catch(()=>{/* Real roster assets are optional in the offline practice scene. */});}
  render(state,now){const gl=this.gl,canvas=this.canvas;const w=Math.min(2200,Math.max(1,canvas.clientWidth*devicePixelRatio)),h=Math.min(1300,Math.max(1,canvas.clientHeight*devicePixelRatio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;if(gl)gl.viewport(0,0,w,h)}
@@ -51,7 +56,7 @@ export class StadiumScene{
  const defending=state.half==='top'?state.home:state.visitor;const dteam=TEAMS.find(t=>t.id===defending)||TEAMS[0];const ateam=TEAMS.find(t=>t.id!==(state.half==='top'?state.home:state.visitor)&&t.id===(state.half==='top'?state.visitor:state.home))||TEAMS[1];
  FIELDERS.forEach((f,i)=>{const pos=state.liveFielders?.[f.key]||(state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos);
    const person=this.avatarTeams.get(defending)?.lineup?.[i],key=person?.id||`${defending}:${f.key}`;
-   drawAvatar(b,[pos.x??pos[0],pos.z??pos[1]],{id:key,color:dteam.color,profile:person?.profile,role:i===0?'pitcher':'fielder',phase:state.phase,now,detail:i<2?1:0});
+   drawAvatar(b,[pos.x??pos[0],pos.z??pos[1]],{id:key,color:dteam.color,profile:person?.profile,role:i===0?'pitcher':'fielder',positionKey:f.key,phase:state.phase,now,detail:i<2?1:0});
  });
  const activeBatter=this.avatarTeams.get(ateam.id)?.batters?.[(state.atBat-1)%Math.max(1,this.avatarTeams.get(ateam.id)?.batters?.length||1)];
  drawAvatar(b,[1.1,-.9],{id:activeBatter?.id||`${ateam.id}:batter`,profile:activeBatter?.profile,color:ateam.color,role:'batter',phase:state.phase,now});
