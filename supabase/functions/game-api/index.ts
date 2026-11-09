@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
           .eq('league_id', league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year)
           .eq('phase','final').order('scheduled_at',{ascending:false}).limit(12),
         db.from('league_champions').select('season_year,team_id').eq('league_id',league.id).order('season_year',{ascending:false}).limit(10),
-        db.from('league_players').select('roster_status,monthly_salary_ntd').eq('league_id',league.id).eq('team_id',pickTeam),
+        db.from('league_players').select('roster_status,monthly_salary_ntd').eq('league_id',league.id).eq('team_id',pickTeam).neq('roster_status','future'),
         db.from('finance_ledger').select('id,kind,amount_ntd,memo,created_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).order('created_at',{ascending:false}).limit(250),
         db.from('monthly_finance_charges').select('month_no,salary_due_ntd,stadium_due_ntd,staff_due_ntd,travel_due_ntd,equipment_due_ntd,total_paid_ntd,total_owed_ntd,charged_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).order('month_no',{ascending:false}).limit(12)
       ]);
@@ -81,7 +81,7 @@ Deno.serve(async (req: Request) => {
       if (leagueErr||!official) return fail(req,'OFFICIAL_LEAGUE_MISSING',404);
       const [finance,players,finals] = await Promise.all([
         db.from('team_finances').select('team_id,cash_ntd,debt_ntd').eq('league_id',official.id),
-        db.from('league_players').select('team_id,roster_status').eq('league_id',official.id).limit(1000),
+        db.from('league_players').select('team_id,roster_status').eq('league_id',official.id).neq('roster_status','future').limit(1000),
         db.from('games').select('home_team_id,away_team_id,home_score,away_score').eq('league_id',official.id).eq('timeline_id',official.active_timeline_id).eq('season_year',official.current_year).eq('phase','final').limit(1000)
       ]);
       if(finance.error||players.error||finals.error)return fail(req,'OFFICIAL_READ_FAILED',503);
