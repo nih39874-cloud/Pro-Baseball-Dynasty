@@ -175,15 +175,16 @@ Deno.serve(async (req: Request) => {
     }
     if (action === 'roster') {
       need(allowedTeam, 'TEAM_NOT_ALLOWED');
-      const [players,rosters,offers] = await Promise.all([
+      const [players,rosters,offers,opening] = await Promise.all([
         db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,promotion_available_at,fa_service_initial_estimate,fa_initial_eligible_reported,fa_2024_service_reported,fa_usage_min_seasons,fa_qualification_threshold,fa_qualify_note,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence,official_cpbl_id,bats,throws,birth_date)')
           .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(250),
         db.from('roster_submissions').select('kind,player_ids,locked,auto_selected,submitted_at')
           .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam),
         db.from('fa_offers').select('id,player_id,salary_ntd,years,status,created_at')
-          .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('bidder_team_id',pickTeam).order('created_at',{ascending:false}).limit(30)
+          .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('bidder_team_id',pickTeam).order('created_at',{ascending:false}).limit(30),
+        db.from('season_first_team_rosters').select('player_ids,source,submitted_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).maybeSingle()
       ]);
-      if (players.error || rosters.error || offers.error) return fail(req,'ROSTER_READ_FAILED',503);
+      if (players.error || rosters.error || offers.error || opening.error) return fail(req,'ROSTER_READ_FAILED',503);
       const ids=(players.data||[]).map(p=>p.master_player_id);
       let stats=[],visual=[];
       if(ids.length){
@@ -197,7 +198,7 @@ Deno.serve(async (req: Request) => {
       const byId=new Map(),byVisual=new Map(visual.map(x=>[x.master_player_id,x.model_status]));
       for(const item of stats){const list=byId.get(item.master_player_id)||[];list.push(item);byId.set(item.master_player_id,list);}
       const enriched=(players.data||[]).map(p=>({...p,reference_stats:byId.get(p.master_player_id)||[],visual_status:byVisual.get(p.master_player_id)||'missing'}));
-      return json(req,{ok:true,...responseBase,team_id:pickTeam,players:enriched,rosters:rosters.data,offers:offers.data});
+      return json(req,{ok:true,...responseBase,team_id:pickTeam,players:enriched,rosters:rosters.data,opening_roster:opening.data,offers:offers.data});
     }
     if (action === 'free-agents') {
       const r=await db.from('league_players').select('master_player_id,roster_status,monthly_salary_ntd,players_master(full_name,primary_position,source_year)')
@@ -211,6 +212,13 @@ Deno.serve(async (req: Request) => {
       const playerIds = body.player_ids;
       need(Array.isArray(playerIds) && playerIds.every(x => Number.isSafeInteger(x) && x>0),'INVALID_PLAYER_IDS');
       const {data,error}=await db.rpc('server_submit_roster',{p_league:league.id,p_team:pickTeam,p_kind:kind,p_ids:playerIds,p_actor:user.id});
+      return error?fail(req,error.message,409):json(req,{ok:true,count:data});
+    }
+    if (action === 'first-team-save') {
+      need(allowedTeam,'TEAM_NOT_ALLOWED');
+      const ids=body.player_ids;
+      need(Array.isArray(ids)&&ids.length<=28&&ids.every(x=>Number.isSafeInteger(x)&&x>0),'INVALID_PLAYER_IDS');
+      const {data,error}=await db.rpc('server_save_first_team28',{p_league:league.id,p_team:pickTeam,p_ids:ids,p_actor:user.id});
       return error?fail(req,error.message,409):json(req,{ok:true,count:data});
     }
     if (action === 'offer-fa') {
