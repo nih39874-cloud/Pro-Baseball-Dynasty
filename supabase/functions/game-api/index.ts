@@ -179,9 +179,11 @@ Deno.serve(async (req: Request) => {
       need(allowedTeam,'TEAM_NOT_ALLOWED');
       const playerId=Number(body.player_id),to=String(body.to_level||'');
       need(Number.isSafeInteger(playerId)&&playerId>0&&(to==='active'||to==='reserve'),'INVALID_LEVEL_CHANGE');
-      const r=await db.rpc('server_move_player_level',{
-        p_league:league.id,p_team:pickTeam,p_player:playerId,p_to:to,p_actor:user.id
-      });
+      const r=isGM
+        ? await db.rpc('server_gm_move_player_level',{p_actor:user.id,p_player:playerId,p_to:to})
+        : await db.rpc('server_move_player_level',{
+            p_league:league.id,p_team:pickTeam,p_player:playerId,p_to:to,p_actor:user.id
+          });
       return r.error?fail(req,r.error.message,409):json(req,{ok:true,...responseBase,move_result:r.data});
     }
     if (action === 'roster') {
