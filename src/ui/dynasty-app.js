@@ -4,7 +4,7 @@ import {signIn,signOut,apiCall,getSessionMetadata} from '../backend/auth.js';
 const root=document.querySelector('#app');
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
-const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,
+const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,diagnostics:null,gmBusy:false,
   search:'',filter:'all',gameTab:'schedule',marketTab:'available',selectedOpponent:'brothers',openingMode:false,openingIds:null,lineupDraft:null,lineupTab:'batting',lineupPicker:null,notice:'',loading:false,loginUser:'GM'};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const fmt=n=>Number(n??0).toLocaleString('zh-TW');
@@ -50,7 +50,7 @@ function home(){
  mini('聯盟賽事','對戰 · 戰績 · 排程','season','⚾','03')+
  mini('自由市場','FA · 簽約談判','market','◇','04')+
  mini('財務合約','薪資 · 資金','finance','＄','05')+
- mini(gm()?'六隊情報室':'球團檔案',gm()?'正式球隊即時觀察':'經營檔案',gm()?'observe':'club','◈','06')+
+ mini(gm()?'GM 測試中心':'球團檔案',gm()?'場次快轉 · 資料診斷':'經營檔案',gm()?'lab':'club','◈','06')+
  '</div><div class="arena-ticker"><span>◆ 聯盟情報</span><marquee scrollamount="3">'+(gm()?'GM 專用沙盒已啟用｜可隨時簽約與升降一二軍｜正式聯盟資料隔離':'六隊真人經營｜開季 28 人名單｜例行賽與季後賽由系統自動模擬')+'</marquee></div></div>';
 }
 function roster(){
@@ -177,6 +177,23 @@ function finance(){
 function club(){
  return box('球團資訊','<div class="financial-row"><span>所屬球隊</span><b>'+escape(gm()?'GM 平行球團':tname(ownTeam()))+'</b></div><div class="financial-row"><span>遊戲球季</span><b>'+escape(state.session?.year)+'</b></div><div class="financial-row"><span>管理模式</span><b>'+(gm()?'獨立模擬':'六隊真人')+'</b></div>');
 }
+function lab(){
+ if(!gm())return empty('此功能僅供 GM 平行球團操作');
+ const d=state.diagnostics?.report||{};
+ const list=d.issues||[];
+ return '<div class="gm-lab"><div class="market-hero"><span>GM SANDBOX // DEBUG TOOLS</span><b>聯盟測試控制中心</b><small>這些操作只影響 GM 平行聯盟，不會修改正式六隊比賽及球員。</small></div>'+
+ '<div class="compact-summary"><div><small>目前球季</small><b>'+escape(d.year??state.session?.year??'—')+'</b></div><div><small>已完賽</small><b>'+escape(d.finished_games??'—')+'</b></div><div><small>待模擬</small><b>'+escape(d.scheduled_games??'—')+'</b></div></div>'+
+ '<div class="gm-lab-actions">'+
+ '<button data-gm-simulate="1" '+(state.gmBusy?'disabled':'')+'><span>▶</span><b>下一場</b><small>模擬 1 場</small></button>'+
+ '<button data-gm-simulate="10" '+(state.gmBusy?'disabled':'')+'><span>≫</span><b>下一個月</b><small>最多模擬 10 場</small></button>'+
+ '<button data-gm-simulate="30" '+(state.gmBusy?'disabled':'')+'><span>⚡</span><b>批次模擬</b><small>最多模擬 30 場</small></button>'+
+ '<button data-action="gm-check" '+(state.gmBusy?'disabled':'')+'><span>✓</span><b>資料健檢</b><small>名單、打線、財務</small></button>'+
+ '</div><div class="gm-lab-report"><div class="finance-section-head"><b>系統完整性檢查</b><small>'+(d.checked_at?toDate(d.checked_at):'尚未檢查')+'</small></div>'+
+ (list.length?list.map(x=>'<div class="gm-issue '+(x.level==='error'?'gm-issue-error':'')+'"><strong>'+escape(x.code||'CHECK')+'</strong><span>'+escape(x.message)+'</span></div>').join(''):
+ '<div class="gm-no-issues">✓ '+(d.checked_at?'目前檢查項目沒有異常':'請按「資料健檢」檢查')+'</div>')+
+ '</div><div class="roster-tip">快轉僅處理 GM 模擬聯盟；正式六隊已排定明天上午 08:00 開賽，不會受到影響。</div>'+
+ '<button class="gm-observe-link" data-page="observe">查看正式六隊唯讀情報 ↗</button></div>';
+}
 function observe(){
  const d=state.observer;
  if(!d)return empty('正在讀取六隊狀況');
@@ -200,8 +217,8 @@ function openSign(id){
 }
 function render(){
  if(!state.session){root.innerHTML=login();return;}
- const labels={home:'球團總部',roster:'球員名單',coach:'戰術設定',season:'賽程戰績',market:'自由球員',finance:'財務合約',club:'球團資訊',observe:'正式六隊狀況'};
- const body={home,roster,coach,season,market,finance,club,observe}[state.page]();
+ const labels={home:'球團總部',roster:'球員名單',coach:'戰術設定',season:'賽程戰績',market:'自由球員',finance:'財務合約',club:'球團資訊',observe:'正式六隊狀況',lab:'GM 測試中心'};
+ const body={home,roster,coach,season,market,finance,club,observe,lab}[state.page]();
  const c=teamMap[ownTeam()]?.color||'#d0aa64';
  root.style.setProperty('--team',c);
  root.innerHTML=top()+'<main class="main"><div class="page-head"><h2>'+labels[state.page]+'</h2><button type="button" class="tiny-button" data-action="refresh">⟳</button></div>'+(state.notice?'<div class="notice" role="status">'+escape(state.notice)+'</div>':'')+'<div class="page-body">'+body+'</div></main>'+bottom()+modal();
@@ -213,18 +230,34 @@ async function load(){
  else if(state.page==='coach')state.coach=await apiCall('coach-config',{team_id:ownTeam()});
  else if(state.page==='market'){if(gm())state.gmMarket=await apiCall('gm-market');else state.fa=await apiCall('free-agents');}
  else if(state.page==='observe'&&gm())state.observer=await apiCall('gm-observe');
+ else if(state.page==='lab'&&gm())state.diagnostics=await apiCall('gm-diagnostics');
  state.notice='';
  }catch(e){state.notice=e.message||'讀取失敗';}
  render();
 }
 function goto(page){
  state.page=page;state.lineupDraft=null;state.lineupPicker=null;state.view='';state.search='';state.filter='all';state.openingMode=false;state.openingIds=null;state.notice='';
- if(page==='observe'&&!gm()){state.page='home';return render();}
+ if((page==='observe'||page==='lab')&&!gm()){state.page='home';return render();}
  render();void load();
 }
 root.addEventListener('click',async e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.page){goto(b.dataset.page);return;}
+ if(b.dataset.gmSimulate!==undefined){
+  if(!gm()||state.gmBusy)return;
+  const count=Number(b.dataset.gmSimulate);
+  if(!confirm('確定在 GM 平行聯盟模擬 '+count+' 場比賽？正式六隊不會受影響。'))return;
+  state.gmBusy=true;state.notice='GM 模擬中…';render();
+  try{
+    const result=await apiCall('gm-simulate',{count});
+    const simulated=result.simulation?.simulated||0;
+    state.diagnostics=await apiCall('gm-diagnostics');
+    state.notice='GM 平行聯盟完成 '+simulated+' 場比賽，正式六隊未變更。';
+  }catch(err){state.notice=err.message||'GM 模擬失敗';}
+  finally{state.gmBusy=false;render();}
+  return;
+ }
+
  if(b.dataset.lineupTab){state.lineupTab=b.dataset.lineupTab;render();return;}
  if(b.dataset.orderUp!==undefined||b.dataset.orderDown!==undefined){const index=Number(b.dataset.orderUp??b.dataset.orderDown),other=index+(b.dataset.orderUp!==undefined?-1:1),order=state.lineupDraft?.order||[];if(other>=0&&other<order.length){[order[index],order[other]]=[order[other],order[index]];state.lineupDraft.dirty=true;}render();return;}
  if(b.dataset.pickDefense){state.lineupPicker={type:'def',key:b.dataset.pickDefense};render();return;}
@@ -264,7 +297,8 @@ root.addEventListener('click',async e=>{
  if(b.dataset.sign){openSign(Number(b.dataset.sign));return;}
  if(b.dataset.move||b.dataset.demote){const id=Number(b.dataset.move||b.dataset.demote),to=b.dataset.to||'reserve';if(!confirm('確定將這名球員'+(to==='active'?'升上一軍':'下放二軍')+'？'+(gm()?'GM 測試模式不需要冷卻。':'降二軍後需等待 4 小時才能升回一軍。')))return;try{await apiCall('coach-move',{team_id:ownTeam(),player_id:id,to_level:to});state.roster=await apiCall('roster',{team_id:ownTeam()});state.coach=null;state.notice=gm()?'GM 測試模式：已完成'+(to==='active'?'升一軍':'降二軍')+'，可立即反向操作。':to==='active'?'已升上一軍，可隨時再降二軍。':'已下放二軍，4 小時後可再升一軍。';render();}catch(err){state.notice=err.message;render()}return;}
  const action=b.dataset.action;
- if(action==='enter-lineup'){state.lineupDraft=draftForOpponent();state.lineupTab='batting';state.view='lineup';render();}
+ if(action==='gm-check'){if(!gm()||state.gmBusy)return;state.gmBusy=true;try{state.diagnostics=await apiCall('gm-diagnostics');state.notice='已完成 GM 平行聯盟資料健檢';}catch(err){state.notice=err.message||'健檢失敗';}finally{state.gmBusy=false;render();}}
+ else if(action==='enter-lineup'){state.lineupDraft=draftForOpponent();state.lineupTab='batting';state.view='lineup';render();}
  else if(action==='exit-lineup'){state.view='';state.lineupDraft=null;state.lineupPicker=null;render();}
  else if(action==='close-picker'){state.lineupPicker=null;render();}
  else if(action==='save-lineup'){const d=state.lineupDraft;try{if(!d||d.order.length!==9||new Set(d.order).size!==9||Object.values(d.defense).some(x=>!x))throw Error('需選滿九棒與九個守備位置');
