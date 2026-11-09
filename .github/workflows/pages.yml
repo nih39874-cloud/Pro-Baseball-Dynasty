@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: '22'
       - run: npm test
+      - run: find src -name '*.js' -print0 | xargs -0 -n1 node --check
       - run: node scripts/check_avatar_catalog.mjs
       - uses: actions/configure-pages@v5
       - name: Assemble static site (do not publish server scripts)
