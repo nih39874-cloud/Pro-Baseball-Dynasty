@@ -65,9 +65,12 @@ jobs:
         run: |
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git config user.name 'github-actions[bot]'
+          # Rebase the generated binary files by preserving working-tree bytes.
+          # A regular git rebase cannot merge concurrent .glb/.png outputs.
+          git fetch origin main
+          git reset --mixed origin/main
           git add assets/models/player_base.glb assets/models/stadium_base.glb assets/previews/player-review.png assets/previews/stadium-review.png
           if ! git diff --cached --quiet; then
             git commit -m "assets: export Blender GLB models and QA renders"
-            git pull --rebase origin main
-            git push
+            git push origin HEAD:main
           fi
