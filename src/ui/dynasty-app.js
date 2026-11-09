@@ -4,7 +4,7 @@ import {signIn,signOut,apiCall,getSessionMetadata} from '../backend/auth.js';
 const root=document.querySelector('#app');
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
-const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,diagnostics:null,gmBusy:false,
+const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,diagnostics:null,gmBusy:false,seasonStats:null,awards:null,statTab:'batters',
   search:'',filter:'all',gameTab:'schedule',marketTab:'available',selectedOpponent:'brothers',openingMode:false,openingIds:null,lineupDraft:null,lineupTab:'batting',lineupPicker:null,notice:'',loading:false,loginUser:'GM'};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const fmt=n=>Number(n??0).toLocaleString('zh-TW');
@@ -80,7 +80,7 @@ function roster(){
   const blocked=cooldown||full;
   const action=active?'下二軍':reserve?'升一軍':null;
   const label=cooldown?'冷卻至 '+new Date(availableAt).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}):full?'一軍已滿':action;
-  return '<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(active?'一軍':reserve?'二軍／預備':'其他狀態')+' · '+(p.players_master?.primary_position==='P'?'ERA '+publicStats(p).era:'AVG '+publicStats(p).avg)+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></button>'+
+  return '<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(active?'一軍':reserve?'二軍／預備':'其他狀態')+' · '+(p.condition?.injury_games_remaining?'傷停 '+p.condition.injury_games_remaining+' 場':'疲勞 '+(p.condition?.fatigue||0)+'%')+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></button>'+
    (action&&moveEnabled?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
  };
  const notice=gm()?'GM 平行測試模式：一、二軍隨時可升降，不受開季、季末與 4 小時冷卻限制；一軍仍限 28 人。':pending?'目前尚未開賽：請按上方「選擇開季 28 人」，勾選要升一軍的球員。開賽後恢復單人升降按鈕。':seasonClosed?'本球季已結束：一軍／二軍升降停用，等待下季選名單。':'降二軍後 4 小時才能再升一軍；升一軍後可立即下放。';
@@ -88,7 +88,7 @@ function roster(){
  (pending&&!gm()?'<button class="opening-entry" data-action="open-opening"><span>選擇開季 28 人（含升一軍）</span><strong>'+(d.opening_roster?.source==='manual'?'已提交 · 可修改':'預設沿用上季')+' ›</strong></button>':'')+
  '<div class="switch-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+'</button>').join('')+'</div>'+
  '<div class="inline-search"><input id="filter-players" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
- '<div class="roster-tip">'+notice+'</div>'+
+ '<div class="roster-tip">'+notice+'</div><button class="roster-stats-entry" data-page="stats">查看本球季球員投打成績 ›</button>'+
  '<div class="list-scroller">'+list.map(line).join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
 }
 const defenseSlots=[['P','投手'],['C','捕手'],['1B','一壘'],['2B','二壘'],['3B','三壘'],['SS','游擊'],['LF','左外'],['CF','中外'],['RF','右外'],['DH','指定打擊']];
