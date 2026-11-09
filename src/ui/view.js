@@ -239,7 +239,7 @@ export class GameUI{
    (this.remote.role==='gm'?'<div class="team-grid">'+this.teamCards()+'</div>':'')+
    renderLivePanel({games:this.liveList?.games||[],selection:this.liveSelected,gameData:this.liveData,
     teamId:this.viewTeam(),players:this.liveRoster?.players||[],clockEnabled:this.liveList?.clock_enabled??false,
-    aim:this.liveAim,meterRunning:!!this.liveMeterAt,fieldPos:this.liveFieldPos,motion:this.liveMotion});
+    aim:this.liveAim,meterRunning:!!this.liveMeterAt,fieldPos:this.liveFieldPos,motion:this.liveMotion,stageActive:this.liveReplayActive});
   return;
  }
  if(this.modal==='coach'&&this.remote){

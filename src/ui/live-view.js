@@ -33,7 +33,7 @@ export function renderAimPad({x=0,y=0,pendingPitch=null,batting=false}={}){
 }
 const PITCH_TYPES=[['four_seam','四縫線'],['two_seam','二縫線'],['slider','滑球'],['curve','曲球'],['changeup','變速'],['splitter','指叉'],['cutter','卡特'],['sinker','伸卡']];
 
-export function renderLivePanel({games=[],selection=null,gameData=null,teamId='',players=[],aim={x:0,y:0},meterRunning=false,fieldPos='CF',motion={dx:0,dz:0}}={}){
+export function renderLivePanel({games=[],selection=null,gameData=null,teamId='',players=[],aim={x:0,y:0},meterRunning=false,fieldPos='CF',motion={dx:0,dz:0},stageActive=false}={}){
  const g=gameData?.game;
  const state=gameData?.session?.state;
  const controls=gameData?.controls||[];
@@ -50,6 +50,8 @@ export function renderLivePanel({games=[],selection=null,gameData=null,teamId=''
  const subs=active.filter(p=>p.players_master?.primary_position!=='P'&&!state?.[`${side}_lineup`]?.batting_order?.map(String).includes(String(p.master_player_id)));
  return `<section class="live-overlay"><p class="notice">即時賽事由伺服器逐打席判定；此版可觀戰、總教練換投／代打／下戰術，已可在此進行伺服器驗證的逐球投打與 ABS；3D 動作、真實球路物理與多人守備操作仍未完成。</p>
  <div class="live-game-list">${games.map(x=>gameRow(x,selection)).join('')||'<p>近期尚無可觀看賽事。</p>'}</div>
+ <div class="live-stage-buttons"><button class="btn ${stageActive?'accent':''}" data-live-stage="1">${stageActive?'返回控制面板':'進入 3D 球場'}</button>
+ <button class="btn" data-live-replay="1" ${!g?'disabled':''}>重播最近一球／打席</button></div>
  ${!g?'<div class="notice">選擇場次才能查看比分與控制權。</div>':`
  <div class="live-score"><div>${name(g.away_team_id)} <b>${Number(state?.away_score??g.away_score??0)}</b></div><div class="live-center"><strong>${state?`${Number(state.inning)}局${state.half==='top'?'上':'下'}`:(g.phase==='final'?'已結束':'尚未啟動')}</strong><small>${state?`${Number(state.outs)} 出局　壘上${(state.bases||[]).map((b,i)=>b?i+1:'').filter(Boolean).join('、')||'無人'}`:`${localTime(g.scheduled_at)} · ${safe(g.phase)}`}</small></div><div><b>${Number(state?.home_score??g.home_score??0)}</b> ${name(g.home_team_id)}</div></div>
  <div class="live-control"><span>本隊控制：<b>${safe(c?.active_mode||'電腦自動')}</b>${c?.pending_mode?`（下一打席：${safe(c.pending_mode)}）`:''}</span>
