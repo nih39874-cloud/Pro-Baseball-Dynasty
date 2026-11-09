@@ -86,7 +86,8 @@ begin
     'home_lineup',h,'away_lineup',a,'tactics',jsonb_build_object('home','normal','away','normal'),
     'between_atbats',true,'last_result',jsonb_build_object('text','比賽開始'),'finished',false,
     'used_pitchers',jsonb_build_object('home',jsonb_build_array((h->'defense'->>'P')::bigint),
-                                          'away',jsonb_build_array((a->'defense'->>'P')::bigint)));
+                                          'away',jsonb_build_array((a->'defense'->>'P')::bigint)),
+    'used_hitters',jsonb_build_object('home',h->'batting_order','away',a->'batting_order'));
  insert into public.match_sessions(game_id,league_id,timeline_id,season_year,state,last_step_at)
  values(g.id,g.league_id,g.timeline_id,g.season_year,v_state,p_now);
  insert into public.match_team_controls(game_id,league_id,team_id) values
@@ -103,6 +104,7 @@ create or replace function private.live_control(p_game uuid,p_team text,p_mode t
 declare sess public.match_sessions%rowtype; c public.match_team_controls%rowtype;g public.games%rowtype;actual text;
 begin
  if p_mode not in('auto','coach','player') then raise exception 'INVALID_MODE';end if;
+ if p_mode='player' then raise exception 'PLAYER_3D_MODE_NOT_READY';end if;
  select * into sess from public.match_sessions where game_id=p_game for update;
  if not found or sess.completed_at is not null then raise exception 'MATCH_NOT_RUNNING';end if;
  select * into g from public.games where id=p_game;
@@ -158,6 +160,8 @@ begin
   then raise exception 'SUBSTITUTE_NOT_ON_FIRST_TEAM';end if;
  end if;
  if p_kind='change_pitcher' then
+   if (sess.state->>'half')=(case when side='home' then 'bottom' else 'top' end) then raise exception 'CHANGE_PITCHER_ONLY_WHILE_FIELDING';end if;
+   if not exists(select 1 from public.players_master pm where pm.id=p_player and pm.primary_position='P') then raise exception 'SUBSTITUTE_NOT_A_PITCHER';end if;
    if ((sess.state->'used_pitchers'->side) @> jsonb_build_array(p_player)) then raise exception 'PITCHER_ALREADY_USED';end if;
    if (bat @> jsonb_build_array(p_player)) then raise exception 'PITCHER_ALREADY_BATTING';end if;
    d:=jsonb_set(d,'{P}',to_jsonb(p_player),true);
@@ -166,6 +170,8 @@ begin
    used:=coalesce(sess.state->'used_pitchers'->side,'[]'::jsonb)||jsonb_build_array(p_player);
    sess.state:=jsonb_set(sess.state,array['used_pitchers',side],used);
  elsif p_kind='pinch_hitter' then
+   if exists(select 1 from public.players_master pm where pm.id=p_player and pm.primary_position='P') then raise exception 'PITCHER_CANNOT_PINCH_HIT';end if;
+   if (coalesce(sess.state->'used_hitters'->side,'[]'::jsonb) @> jsonb_build_array(p_player)) then raise exception 'HITTER_ALREADY_USED';end if;
    if exists(select 1 from jsonb_array_elements_text(bat) as x(v) where x.v::bigint=p_player) then
     raise exception 'BATTER_ALREADY_IN_LINEUP';end if;
    if (d->>'P')::bigint=p_player then raise exception 'PITCHER_CANNOT_PINCH_HIT';end if;
@@ -181,6 +187,8 @@ begin
    end loop;
    lineup:=jsonb_set(jsonb_set(lineup,'{batting_order}',bat),'{defense}',d);
    sess.state:=jsonb_set(sess.state,array[side||'_lineup'],lineup);
+   used:=coalesce(sess.state->'used_hitters'->side,'[]'::jsonb)||jsonb_build_array(p_player);
+   sess.state:=jsonb_set(sess.state,array['used_hitters',side],used);
  elsif p_kind in('bunt','steal','infield_in','intentional_walk','normal') then
    if p_kind in('bunt','steal') and (sess.state->>'half')<>(case when side='home' then 'bottom' else 'top' end) then
      raise exception 'OFFENSE_TACTIC_ONLY';end if;

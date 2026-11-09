@@ -7,11 +7,11 @@ const name=id=>safe(names[id]||id);
 const localTime=date=>date?new Date(date).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):'';
 function fmtEvent(e){const p=e.payload||{};const txt={BB:'四壞',K:'三振',OUT:'出局','1B':'一壘安打','2B':'二壘安打','3B':'三壘安打',HR:'全壘打',BUNT:'觸擊'}[p.result]||p.result||e.type;
  return `<div class="live-event"><strong>${safe(p.inning||'')} ${p.half==='top'?'上':'下'}</strong><span>${safe(txt)} ${p.runs?`（${Number(p.runs)}分）`:''}</span><small>${name(p.team)}</small></div>`;}
-function gameRow(g,selected,canJoin){const at=new Date(g.scheduled_at).getTime(),now=Date.now();const soon=canJoin&&now>=at-5*60000;
+function gameRow(g,selected){const at=new Date(g.scheduled_at).getTime(),now=Date.now();const soon=now>=at-5*60000;
  return `<div class="live-game ${g.id===selected?'selected':''}"><div>${name(g.away_team_id)} <strong>${Number(g.away_score||0)}：${Number(g.home_score||0)}</strong> ${name(g.home_team_id)} <small>${safe(g.phase)} · ${localTime(g.scheduled_at)}</small></div>
  <button class="btn" data-live-select="${safe(g.id)}">觀看</button>${g.phase==='scheduled'&&soon?`<button class="btn accent" data-live-join="${safe(g.id)}">接入比賽</button>`:''}</div>`;}
 const option=(p)=>`<option value="${Number(p.master_player_id)}">${safe(p.players_master?.full_name||p.master_player_id)} · ${Math.round(Number(p.pitching_rating||p.batting_rating||50))}</option>`;
-export function renderLivePanel({games=[],selection=null,gameData=null,teamId='',players=[],clockEnabled=true}={}){
+export function renderLivePanel({games=[],selection=null,gameData=null,teamId='',players=[]}={}){
  const g=gameData?.game;
  const state=gameData?.session?.state;
  const controls=gameData?.controls||[];
@@ -24,7 +24,7 @@ export function renderLivePanel({games=[],selection=null,gameData=null,teamId=''
  const benchPitch=active.filter(p=>p.players_master?.primary_position==='P'&&String(p.master_player_id)!==String(currentPitch));
  const subs=active.filter(p=>p.players_master?.primary_position!=='P'&&!state?.[`${side}_lineup`]?.batting_order?.map(String).includes(String(p.master_player_id)));
  return `<section class="live-overlay"><p class="notice">即時賽事由伺服器逐打席判定；此版可觀戰、總教練換投／代打／下戰術，投打跑守的遠端第一人稱手動同步尚未完成。</p>
- <div class="live-game-list">${games.map(x=>gameRow(x,selection,clockEnabled)).join('')||'<p>近期尚無可觀看賽事。</p>'}</div>
+ <div class="live-game-list">${games.map(x=>gameRow(x,selection)).join('')||'<p>近期尚無可觀看賽事。</p>'}</div>
  ${!g?'<div class="notice">選擇場次才能查看比分與控制權。</div>':`
  <div class="live-score"><div>${name(g.away_team_id)} <b>${Number(state?.away_score??g.away_score??0)}</b></div><div class="live-center"><strong>${state?`${Number(state.inning)}局${state.half==='top'?'上':'下'}`:(g.phase==='final'?'已結束':'尚未啟動')}</strong><small>${state?`${Number(state.outs)} 出局　壘上${(state.bases||[]).map((b,i)=>b?i+1:'').filter(Boolean).join('、')||'無人'}`:`${localTime(g.scheduled_at)} · ${safe(g.phase)}`}</small></div><div><b>${Number(state?.home_score??g.home_score??0)}</b> ${name(g.home_team_id)}</div></div>
  <div class="live-control"><span>本隊控制：<b>${safe(c?.active_mode||'電腦自動')}</b>${c?.pending_mode?`（下一打席：${safe(c.pending_mode)}）`:''}</span>
