@@ -99,6 +99,7 @@ function coach(){
  const data=state.coach;if(!data)return empty('戰術資料讀取中');
  const opps=TEAMS.filter(t=>t.id!==ownTeam());
  const opp=opps.some(x=>x.id===state.selectedOpponent)?state.selectedOpponent:opps[0]?.id;
+ if(opp!==state.selectedOpponent)state.selectedOpponent=opp;
  if(state.view==='lineup'){
   const draft=state.lineupDraft||draftForOpponent();
   const roster=(data.players||[]),byId=new Map(roster.map(p=>[Number(p.master_player_id),p]));
@@ -185,10 +186,10 @@ root.addEventListener('click',async e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.page){goto(b.dataset.page);return;}
  if(b.dataset.lineupTab){state.lineupTab=b.dataset.lineupTab;render();return;}
- if(b.dataset.orderUp||b.dataset.orderDown){const index=Number(b.dataset.orderUp??b.dataset.orderDown),other=index+(b.dataset.orderUp!==undefined?-1:1),order=state.lineupDraft?.order||[];if(other>=0&&other<order.length){[order[index],order[other]]=[order[other],order[index]];state.lineupDraft.dirty=true;}render();return;}
+ if(b.dataset.orderUp!==undefined||b.dataset.orderDown!==undefined){const index=Number(b.dataset.orderUp??b.dataset.orderDown),other=index+(b.dataset.orderUp!==undefined?-1:1),order=state.lineupDraft?.order||[];if(other>=0&&other<order.length){[order[index],order[other]]=[order[other],order[index]];state.lineupDraft.dirty=true;}render();return;}
  if(b.dataset.pickBatter!==undefined){state.lineupPicker={type:'bat',index:Number(b.dataset.pickBatter)};render();return;}
  if(b.dataset.pickDefense){state.lineupPicker={type:'def',key:b.dataset.pickDefense};render();return;}
- if(b.dataset.choosePlayer){const id=Number(b.dataset.choosePlayer),d=state.lineupDraft,p=state.lineupPicker;if(d&&p){if(p.type==='bat'){const other=d.order.indexOf(id);if(other>=0){d.order[other]=d.order[p.index];}d.order[p.index]=id;}else{const other=Object.keys(d.defense).find(k=>d.defense[k]===id);if(other)d.defense[other]=d.defense[p.key];d.defense[p.key]=id;}d.dirty=true;}state.lineupPicker=null;render();return;}
+ if(b.dataset.choosePlayer!==undefined){const id=Number(b.dataset.choosePlayer),d=state.lineupDraft,p=state.lineupPicker;if(d&&p){if(p.type==='bat'){const other=d.order.indexOf(id);if(other>=0){d.order[other]=d.order[p.index];}d.order[p.index]=id;}else{const other=Object.keys(d.defense).find(k=>d.defense[k]===id);if(other)d.defense[other]=d.defense[p.key];d.defense[p.key]=id;}d.dirty=true;}state.lineupPicker=null;render();return;}
  if(b.dataset.filter){state.filter=b.dataset.filter;render();return;}
  if(b.dataset.gametab){state.gameTab=b.dataset.gametab;render();return;}
  if(b.dataset.view){state.view=state.view===b.dataset.view?'':b.dataset.view;render();return;}
