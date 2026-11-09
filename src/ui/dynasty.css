@@ -387,3 +387,11 @@ input::placeholder{color:#7c94aa}
 .gm-issue-error strong{color:#ff8f89}.gm-no-issues{margin-top:10px;padding:14px;color:#b7edac;background:#1e443c;border:1px solid #448068;border-radius:9px;font-size:12px}
 .gm-observe-link{background:#29465c;color:#c7ebf6;border:1px solid #5d8095;border-radius:9px;padding:10px;font-weight:750;font-size:12px;flex-shrink:0}
 @media(max-height:720px){.gm-lab .market-hero{min-height:100px}.gm-lab-actions{grid-template-rows:repeat(2,73px)}}
+
+.standings-board{background:#182b3b;border:1px solid #456176;border-radius:12px;padding:7px;overflow:auto}
+.standings-head,.standings-row{display:grid;grid-template-columns:35px 1fr 74px 51px;gap:5px;align-items:center}
+.standings-head{background:#263f51;border-radius:6px;padding:9px;color:#91b3ca;font-size:10px;font-weight:800}
+.standings-row{min-height:54px;padding:9px;border-bottom:1px solid #32465a;color:#c0d5e4;font-size:11px}
+.standings-row b{font-size:12px;color:#e6f3fc}.standings-row strong{font-size:12px;color:#b9ef98}
+.standings-row.mine{background:#2b4c4b;border-radius:7px}
+.arena-tabs{display:flex;gap:4px}.arena-tabs button{flex:1;min-width:0;padding:8px 3px;font-size:11px}
