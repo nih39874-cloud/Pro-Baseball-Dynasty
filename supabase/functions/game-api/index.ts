@@ -37,17 +37,17 @@ Deno.serve(async (req: Request) => {
     const member = memberships[0];
     const { data: league, error: leagueError } = await db.from('leagues').select('*').eq('id', member.league_id).single();
     if (leagueError || !league) return fail(req, 'LEAGUE_NOT_FOUND', 404);
-    if (league.kind !== 'official' || (member.role === 'manager' && !member.team_id) || !['manager','gm'].includes(member.role))
+    if (!((member.role==='gm' && league.kind==='gm') || (member.role==='manager' && league.kind==='official' && !!member.team_id)))
       return fail(req, 'MEMBERSHIP_INVALID', 403);
     const body = await req.json().catch(() => ({}));
     if (typeof body !== 'object' || !body) return fail(req, 'INVALID_REQUEST');
     const action = String(body.action || 'status');
-    const pickTeam = String(body.team_id || member.team_id || '');
-    const isGM = member.role === 'gm' && league.kind === 'official';
-    const allowedTeam = isGM ? teamIds.has(pickTeam) : pickTeam === member.team_id;
+    const isGM = member.role === 'gm' && league.kind === 'gm';
+    const pickTeam = isGM ? 'dragons' : String(member.team_id || '');
+    const allowedTeam = isGM ? pickTeam === 'dragons' : pickTeam === member.team_id;
     const responseBase = { kind: league.kind, league_id: league.id, year: league.current_year, phase: league.season_phase,
       season_anchor_at: league.season_anchor_at, is_ready: league.is_ready, clock_enabled: league.clock_enabled, clock_last_tick: league.clock_last_tick, roster_source_status: league.roster_source_status, role: member.role,
-      team_id: member.team_id, active_timeline_id: league.active_timeline_id };
+      team_id: isGM ? 'dragons' : member.team_id, sandbox: isGM, active_timeline_id: league.active_timeline_id };
 
     if (action === 'status') {
       const [fin, games, recent, champs] = await Promise.all([
@@ -63,6 +63,54 @@ Deno.serve(async (req: Request) => {
       if (fin.error || games.error || recent.error || champs.error) return fail(req, 'DATABASE_READ_FAILED', 503);
       return json(req, { ok: true, ...responseBase, finances: fin.data, upcoming: games.data,
         recent: recent.data, champions: champs.data });
+    }
+    if (action === 'gm-observe') {
+      if (!isGM) return fail(req,'GM_ONLY',403);
+      // Strictly read only from the official timeline; no mutation may target it.
+      const {data:official,error:leagueErr}=await db.from('leagues').select('id,current_year,active_timeline_id,season_phase,clock_enabled').eq('kind','official').single();
+      if (leagueErr||!official) return fail(req,'OFFICIAL_LEAGUE_MISSING',404);
+      const [finance,players,finals] = await Promise.all([
+        db.from('team_finances').select('team_id,cash_ntd,debt_ntd').eq('league_id',official.id),
+        db.from('league_players').select('team_id,roster_status').eq('league_id',official.id).limit(1000),
+        db.from('games').select('home_team_id,away_team_id,home_score,away_score').eq('league_id',official.id).eq('timeline_id',official.active_timeline_id).eq('season_year',official.current_year).eq('phase','final').limit(1000)
+      ]);
+      if(finance.error||players.error||finals.error)return fail(req,'OFFICIAL_READ_FAILED',503);
+      const teams=[...teamIds].map(id=>{
+        const f=(finance.data||[]).find(x=>x.team_id===id);
+        const ps=(players.data||[]).filter(x=>x.team_id===id);
+        let wins=0,losses=0,draws=0;
+        for(const g of finals.data||[]){
+          if(g.home_team_id!==id&&g.away_team_id!==id)continue;
+          if(g.home_score===g.away_score){draws++;continue;}
+          const winner=g.home_score>g.away_score?g.home_team_id:g.away_team_id;
+          if(winner===id)wins++;else losses++;
+        }
+        return {team_id:id,cash_ntd:f?.cash_ntd??null,debt_ntd:f?.debt_ntd??null,
+          players:ps.length,active:ps.filter(x=>x.roster_status==='active').length,wins,losses,draws};
+      });
+      return json(req,{ok:true,year:official.current_year,phase:official.season_phase,clock_enabled:official.clock_enabled,teams});
+    }
+    if (action === 'gm-market') {
+      if(!isGM)return fail(req,'GM_ONLY',403);
+      const {data,error}=await db.from('league_players')
+        .select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,players_master(full_name,primary_position,source_year)')
+        .eq('league_id',league.id).order('master_player_id').limit(1000);
+      return error?fail(req,'GM_MARKET_READ_FAILED',503):json(req,{ok:true,players:data||[]});
+    }
+    if (action === 'gm-sign') {
+      if(!isGM)return fail(req,'GM_ONLY',403);
+      const playerId=Number(body.player_id),salary=Number(body.salary_ntd),years=Number(body.years);
+      if(!Number.isSafeInteger(playerId)||playerId<1||!Number.isSafeInteger(salary)||!Number.isSafeInteger(years))
+        return fail(req,'INVALID_OFFER');
+      const {data,error}=await db.rpc('server_gm_sandbox_sign',{p_actor:user.id,p_player:playerId,p_salary:salary,p_years:years});
+      return error?fail(req,error.message,409):json(req,{ok:true,signing_id:data,completed:true});
+    }
+    if (action === 'gm-signings') {
+      if(!isGM)return fail(req,'GM_ONLY',403);
+      const {data,error}=await db.from('gm_sandbox_signings')
+        .select('player_id,team_id,prior_team_id,salary_ntd,contract_years,signed_at,players_master(full_name)')
+        .eq('league_id',league.id).order('signed_at',{ascending:false}).limit(30);
+      return error?fail(req,'SIGNING_HISTORY_READ_FAILED',503):json(req,{ok:true,signings:data||[]});
     }
     if (action === 'coach-config') {
       need(allowedTeam,'TEAM_NOT_ALLOWED');
