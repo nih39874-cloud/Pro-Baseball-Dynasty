@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {LocalManager,FARM_COOLDOWN_MS,ACTIVE_LIMIT} from '../src/core/local-manager.js';
+const fake=(team,n,pitcher=false)=>({id:team+':'+n,name:'球員'+n,team_id:team,primary_position:pitcher?'P':'',pitching_outs_2024:pitcher?100-n:0,batting_pa_2024:pitcher?0:300-n});
+const ids=['a','b','c','d','e','f'];
+const roster=ids.flatMap(team=>Array.from({length:40},(_,i)=>fake(team,i,i<12)));
+const memory={value:null,getItem(){return this.value},setItem(k,v){this.value=v}};
+test('offline first/farm roster transaction enforces 28 limit and four-hour cooldown',()=>{
+ const m=new LocalManager(roster,ids,memory),t=m.team('a');
+ assert.equal(t.active.length,ACTIVE_LIMIT);
+ const player=t.active[0],now=1750000000000;
+ m.move('a',player,false,now);
+ assert.equal(t.active.length,27);
+ assert.throws(()=>m.move('a',player,true,now+1000),/4 小時/);
+ m.move('a',player,true,now+FARM_COOLDOWN_MS);
+ assert.equal(t.active.length,28);
+ const spare=m.members('a').find(p=>!t.active.includes(p.id));
+ assert.throws(()=>m.move('a',spare.id,true),/28 人/);
+ const restored=new LocalManager(roster,ids,memory);
+ assert.equal(restored.team('a').active.length,28);
+});
+test('independent opponent lineups require DH, nonpitcher defenders, distinct valid active players',()=>{
+ const m=new LocalManager(roster,ids,{getItem(){return null},setItem(){}});
+ const a=m.active('a'),pitcher=a.find(p=>p.primary_position==='P').id;
+ const hitters=a.filter(p=>p.primary_position!=='P').slice(0,9).map(p=>p.id);
+ const defense={P:pitcher,C:hitters[0],'1B':hitters[1],'2B':hitters[2],'3B':hitters[3],SS:hitters[4],LF:hitters[5],CF:hitters[6],RF:hitters[7]};
+ assert.throws(()=>m.saveLineup('a','b',[...hitters.slice(0,8),pitcher],defense),/投手/);
+ m.saveLineup('a','b',hitters,defense);
+ m.saveLineup('a','c',hitters.slice().reverse(),defense);
+ assert.deepEqual(m.getLineup('a','b').batting,hitters);
+ assert.deepEqual(m.getLineup('a','c').batting,hitters.slice().reverse());
+ m.move('a',hitters[0],false,1750000000000);
+ assert.equal(m.getLineup('a','b').needsReview,true);
+ assert.equal(m.getLineup('a','c').needsReview,true);
+});
