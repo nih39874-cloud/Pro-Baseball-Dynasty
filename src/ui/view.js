@@ -119,7 +119,7 @@ export class GameUI{
   if(modal==='roster')this.remoteRoster=await apiCall('roster',{team_id:this.viewTeam()});
   else if(modal==='coach') {this.remoteCoach=await apiCall('coach-config',{team_id:this.viewTeam()}); if(!TEAMS.some(t=>t.id===this.coachOpponent&&t.id!==this.viewTeam()))this.coachOpponent=TEAMS.find(t=>t.id!==this.viewTeam()).id;}
   else if(modal==='fa')this.remoteFA=await apiCall('free-agents');
-  else if(modal==='live')this.liveList=await liveApi('list');
+  else if(modal==='live'){this.liveList=await liveApi('list');if(this.liveSelected)await this.watchLive(this.liveSelected);}
   else this.remote=await apiCall('status');
   $('connection').textContent=this.remote.kind==='gm'?'GM ONLINE':'CPBL ONLINE';
   if(this.modal===modal)this.renderModal();
@@ -137,7 +137,7 @@ export class GameUI{
   $('modalBody').innerHTML=this.header('即時比賽同步與臨場總教練','伺服器逐打席判定 · 可觀戰及管理先發／換投／代打')+
    (this.remote.role==='gm'?'<div class="team-grid">'+this.teamCards()+'</div>':'')+
    renderLivePanel({games:this.liveList?.games||[],selection:this.liveSelected,gameData:this.liveData,
-    teamId:this.viewTeam(),players:this.liveRoster?.players||[]});
+    teamId:this.viewTeam(),players:this.liveRoster?.players||[],clockEnabled:this.liveList?.clock_enabled??false});
   return;
  }
  if(this.modal==='coach'&&this.remote){
