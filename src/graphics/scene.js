@@ -28,27 +28,126 @@ void main(){
 }
 `;
 function shader(gl,type,source){const s=gl.createShader(type);gl.shaderSource(s,source);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
-function buildStatic(){const b=new MeshBuffer();
- b.box(0,-.22,-35,260,.20,255,[.065,.22,.16]);
- for(let z=-140;z<70;z+=13)b.box(0,-.014,z,250,.015,6,((z+140)/13)%2===0?[.09,.32,.22]:[.083,.30,.21]);
- // Infield diamond and home / mound.
- b.quad([0,.008,0],[23,.008,-23],[0,.008,-46],[-23,.008,-23],[.43,.28,.17]);
- b.quad([0,.014,-5],[18,.014,-23],[0,.014,-41],[-18,.014,-23],[.12,.31,.2]);
- b.cylinder(0,0,-18,2.65,.12,[.48,.32,.20],25);b.box(0,.12,-18,1.3,.11,.25,[.95,.93,.87]);
- b.line([0,.06,0],[105,.06,-105],.30,[.97,.95,.85]);b.line([0,.06,0],[-105,.06,-105],.30,[.97,.95,.85]);
- for(const [x,z] of [[0,0],[23,-23],[0,-46],[-23,-23]]){b.box(x,.042,z,1.1,.12,1.1,[.95,.96,.88]);}
- // Batter boxes and backstop
- b.line([-3,.06,1.5],[3,.06,1.5],.12,[.92,.92,.85]);
- for(const x of [-2,2]){b.line([x-1,.05,-1],[x+1,.05,-1],.13,[.92,.92,.85]);b.line([x-1,.05,2.2],[x+1,.05,2.2],.13,[.92,.92,.85]);}
- // Broad curved outfield wall and stands.
- for(let i=0;i<56;i++){const a=(Math.PI*.16)+i*(Math.PI*.68/56),d=(Math.PI*.16)+(i+1)*(Math.PI*.68/56),r=120;const p=[Math.cos(a)*r,0,-Math.sin(a)*r+2],q=[Math.cos(d)*r,0,-Math.sin(d)*r+2];b.box(p[0],0,p[2],2.8,7.2,3.1,[.10,.29,.29]);b.line([p[0],7.2,p[2]],[q[0],7.2,q[2]],1.5,[.76,.69,.44]);
- for(let j=0;j<4;j++){const h=8+j*3.2;const s=[Math.cos(a)*(r+8+j*3),h,-Math.sin(a)*(r+8+j*3)+2];b.box(s[0],h/8,s[2],3.1,2.5,3,[.16+j*.015,.23+j*.01,.29+j*.005]);}}
- // Foul poles and floodlights.
- for(const x of [-90,90]){b.cylinder(x,0,-91,.20,27,[.96,.83,.30],9);b.cylinder(x*1.35,0,-15,.68,30,[.41,.43,.45],12);b.box(x*1.35,29,-15,16,4,1.2,[.91,.93,.82]);}
- // Dugouts and roofs.
- for(const x of [-32,32]){b.box(x,0,5,16,2.4,9,[.19,.28,.34]);b.box(x,2.4,5,18,.65,10,[.08,.15,.19]);b.box(x,.8,5.2,16,.7,.8,[.36,.39,.38]);}
- // Backstop lines and scoreboard at center-field.
- b.box(0,6,-125,24,13,2,[.03,.13,.20]);b.box(0,7,-123.8,21,10,.12,[.11,.26,.27]);
+function buildStatic(){
+ const b=new MeshBuffer();
+ const grass=[.083,.275,.143],grassLight=[.105,.325,.173],grassDark=[.072,.242,.127];
+ const clay=[.43,.258,.147],track=[.33,.285,.245],concrete=[.32,.36,.39],steel=[.59,.66,.68];
+ const seatColors=[[.09,.25,.36],[.11,.28,.40],[.13,.32,.42],[.14,.34,.33]];
+ const hash=n=>{const x=Math.sin(n*127.13+4.72)*43758.5453;return x-Math.floor(x)};
+ // Field substrate and striped, individually tiled natural-grass appearance.
+ b.box(0,-.36,-34,285,.32,276,grassDark);
+ for(let x=-134;x<134;x+=11){
+  for(let z=-151;z<72;z+=11){
+   const stripe=((Math.floor((x+134)/11)+Math.floor((z+151)/11))%2);
+   const variation=(hash(x*17+z*91)-.5)*.025;
+   const color=(stripe?grassLight:grass).map(v=>v+variation);
+   b.box(x+5.5,-.022,z+5.5,11,.025,11,color);
+  }
+ }
+ // Warning track, basepath, infield dirt and finely varied grass cutout.
+ b.quad([0,.025,1],[24,.025,-23],[0,.025,-47],[-24,.025,-23],clay);
+ b.quad([0,.035,-4.0],[18.7,.035,-23],[0,.035,-42.0],[-18.7,.035,-23],grass);
+ for(let i=0;i<24;i++){const a=i*1.618,r=3+Math.sqrt(i)*2.6;b.box(Math.cos(a)*r,.041,-23+Math.sin(a)*r,.36,.01,.27,hash(i*9)>.5?[.29,.18,.12]:[.39,.24,.14]);}
+ b.cylinder(0,.03,-18,2.62,.135,clay,30);b.box(0,.17,-18,.92,.07,.19,[.96,.95,.88]);
+ for(const [x,z] of [[0,0],[23,-23],[0,-46],[-23,-23]])b.box(x,.058,z,.93,.11,.93,[.94,.94,.90]);
+ for(const [x,z] of [[23,-23],[0,-46],[-23,-23]])b.box(x,.045,z,3.6,.015,3.6,clay);
+ b.line([0,.075,0],[107,.075,-107],.16,[.97,.96,.92]);
+ b.line([0,.075,0],[-107,.075,-107],.16,[.97,.96,.92]);
+ for(const side of [-1,1]){
+  b.line([side*.90,.085,-1.35],[side*2.95,.085,-1.35],.09,[.94,.94,.89]);
+  b.line([side*.90,.085,2.05],[side*2.95,.085,2.05],.09,[.94,.94,.89]);
+  b.line([side*2.95,.085,-1.35],[side*2.95,.085,2.05],.09,[.94,.94,.89]);
+ }
+ // Curved warning-track and calibrated outfield fence.
+ const N=76,lo=Math.PI*.15,hi=Math.PI*.85;
+ const arc=(angle,r)=>[Math.cos(angle)*r,-Math.sin(angle)*r];
+ for(let i=0;i<N;i++){
+  const a=lo+(hi-lo)*i/N,d=lo+(hi-lo)*(i+1)/N,[x,z]=arc(a,119),[xx,zz]=arc(d,119);
+  b.line([x,.055,z],[xx,.055,zz],4,track);
+  const [wx,wz]=arc(a,122),[wnx,wnz]=arc(d,122);
+  const wallColor=i%9<3?[.075,.265,.23]:[.07,.235,.225];
+  b.box(wx,0,wz,2.5,5.7,2.0,wallColor);
+  b.line([wx,5.76,wz],[wnx,5.76,wnz],.32,[.95,.80,.29]);
+  b.box(wx,3.1,wz-1.1,2.0,.9,.09,i%8===0?[.94,.57,.16]:[.18,.38,.43]);
+  if(i%4===0){
+   b.cylinder(wx,5.7,wz,.085,2.5,steel,6);
+   b.line([wx,8.1,wz],[wnx,8.1,wnz],.08,steel);
+  }
+  // Concrete bowl, risers, alternating seat cushions and sparse spectators.
+  for(let row=0;row<8;row++){
+   const radius=130+row*3.5,height=7.4+row*.98;
+   const [sx,sz]=arc(a,radius);
+   b.box(sx,height-1.0,sz,2.75,1.12,3.4,concrete);
+   b.box(sx,height+.06,sz-.38,2.45,.17,1.3,seatColors[(i+Math.floor(row/2))%seatColors.length]);
+   b.box(sx,height+.14,sz+.28,2.4,.60,.21,seatColors[(i+Math.floor(row/2))%seatColors.length]);
+   if(row>1 && hash(i*31+row*17)>.48){
+    const jacket=hash(i*47+row*11)>.5?[.52,.22,.18]:[.66,.68,.58];
+    b.box(sx,height+.26,sz-.25,.49,.51,.31,jacket);
+    b.sphere(sx,height+.82,sz-.25,.205,[.66,.46,.32],6);
+   }
+  }
+  if(i%12===0){
+   const [px,pz]=arc(a,145);
+   b.cylinder(px,7,pz,.13,11,steel,7);
+  }
+ }
+ // Behind-home grandstand, press booths, glass frontage and roof canopy.
+ for(const side of [-1,1]){
+  for(let row=0;row<7;row++){
+   const z=20+row*3.2,y=2.4+row*.85;
+   for(let i=0;i<14;i++){
+    const x=side*(6+i*3.3);
+    b.box(x,y-.65,z,2.85,.90,3.15,concrete);
+    b.box(x,y+.15,z-.45,2.55,.13,1.30,seatColors[(i+row)%4]);
+    b.box(x,y+.20,z+.25,2.55,.58,.18,seatColors[(i+row)%4]);
+    if(hash(i*7+row*51+side*100)>.68){
+     b.box(x,y+.33,z-.25,.43,.49,.31,[.26+.25*hash(i),.29,.35]);
+     b.sphere(x,y+.88,z-.25,.19,[.70,.48,.34],6);
+    }
+   }
+  }
+  const dx=side*28;
+  b.box(dx,10.3,45,38,4.9,9,[.13,.21,.27]);
+  b.box(dx,12.2,40.35,35.2,1.4,.21,[.28,.44,.50]);
+  for(let i=0;i<9;i++)b.box(dx-16+i*4,12.2,40.20,.15,1.45,.26,steel);
+  b.box(dx,16,43,44,.55,12,[.16,.19,.21]);
+ }
+ // Foul poles with yellow mesh and stadium LED floodlights.
+ for(const side of [-1,1]){
+  const x=side*92;
+  b.cylinder(x,.0,-91,.17,30,[.98,.79,.21],9);
+  for(let y=3;y<=28;y+=3)b.line([x,y,-91],[x+side*4,y,-91],.07,[.92,.72,.21]);
+  const lx=side*146;
+  b.cylinder(lx,0,-10,.75,32,[.39,.43,.46],10);
+  b.box(lx,31,-10,19,3.5,1.8,[.16,.21,.26]);
+  for(let j=0;j<9;j++)b.box(lx-8+j*2,31.5,-10.96,1.65,2.05,.13,[.96,.96,.83]);
+ }
+ // Bullpens, roofed dugouts and seats with overhead protection.
+ for(const side of [-1,1]){
+  const x=side*34;
+  b.box(x,0,7,20,2.1,10,[.19,.22,.25]);
+  b.box(x,2.5,7,22,.68,11,[.16,.19,.22]);
+  b.box(x,1.06,5.7,18,.48,.72,[.29,.31,.31]);
+  for(let i=0;i<6;i++){
+   b.box(x-8+i*3.2,1.08,6.2,1.65,.16,.60,[.16,.31,.35]);
+   b.box(x-8+i*3.2,1.18,6.65,1.65,.44,.16,[.16,.31,.35]);
+  }
+  b.box(x,2.4,2.1,21,.15,.15,steel);
+ }
+ // Backstop posts and transparent-looking open mesh (only thin rods, never a solid wall).
+ for(let i=-14;i<=14;i+=2){
+  b.cylinder(i,0,14,.035,8,[.40,.48,.51],5);
+ }
+ for(let y=1;y<=8;y+=1.4)b.line([-15,y,14],[15,y,14],.026,[.31,.39,.41]);
+ // Center-field scoreboard: dark fascia and modular emissive looking LED tiles.
+ b.box(0,6,-132,29,15,2.6,[.10,.14,.19]);
+ b.box(0,8,-130.51,26.5,11.1,.18,[.025,.055,.075]);
+ for(let x=-12;x<=12;x+=1.5){
+  for(let y=4;y<=12;y+=1.5){
+   if(hash(x*79+y*23)>.86)b.box(x,y,-130.39,1.20,1.05,.045,[.18,.51,.56]);
+  }
+ }
+ b.box(0,20.8,-132,32,1.1,3.0,[.20,.27,.30]);
  return b;
 }
 export class StadiumScene{
