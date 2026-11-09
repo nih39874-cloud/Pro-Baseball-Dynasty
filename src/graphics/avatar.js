@@ -71,6 +71,7 @@ export function drawAvatar(mesh,position,{id='unknown',color='#e2b544',profile=n
  let action=0;
  if(role==='pitcher'&&phase==='pitching') action=.9*Math.sin(now/185);
  if(role==='batter'&&phase==='pitching') action=.1;
+ if(role==='batter'&&phase==='swinging')action=.8*Math.sin(now/130);
  for(const side of [-1,1]){
   const shoulderPos=[x+side*shoulder,.1+1.17*height-crouch,z];
   const elbow=[x+side*(shoulder+.14),.86*height-crouch+Math.abs(action)*.18,z+side*action*.11];

@@ -1,6 +1,7 @@
 import {MeshBuffer,rgb,perspective,lookAt,multiply,deg} from './mesh.js';
 import {FIELDERS,TEAMS} from '../config.js';
 import {drawAvatar} from './avatar.js';
+import {LiveReplay} from './live-replay.js';
 import {currentRole,isOffense} from '../core/rules.js';
 const VERT=`attribute vec3 aPosition;attribute vec3 aColor;uniform mat4 uVP;varying vec3 vColor;void main(){vColor=aColor;gl_Position=uVP*vec4(aPosition,1.);}`;
 const FRAG=`precision mediump float;varying vec3 vColor;void main(){vec3 c=pow(vColor,vec3(.91));gl_FragColor=vec4(c,1.);}`;
@@ -30,6 +31,12 @@ function buildStatic(){const b=new MeshBuffer();
 }
 export class StadiumScene{
  constructor(canvas){this.canvas=canvas;const gl=canvas.getContext('webgl2',{antialias:true,alpha:false,powerPreference:'high-performance'});if(!gl){this.gl=null;this.ctx=canvas.getContext('2d');this.software=true;this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();return;}this.gl=gl;const prog=gl.createProgram();gl.attachShader(prog,shader(gl,gl.VERTEX_SHADER,VERT));gl.attachShader(prog,shader(gl,gl.FRAGMENT_SHADER,FRAG));gl.linkProgram(prog);if(!gl.getProgramParameter(prog,gl.LINK_STATUS))throw Error('WebGL shader link failed');this.program=prog;this.aPos=gl.getAttribLocation(prog,'aPosition');this.aCol=gl.getAttribLocation(prog,'aColor');this.vp=gl.getUniformLocation(prog,'uVP');this.staticMesh=buildStatic();this.cameraYaw=0;this.setupAvatars();}
+ renderRemote(data,teamId,now){
+  if(!this.liveReplay)this.liveReplay=new LiveReplay();
+  this.liveReplay.ingest(data,now);
+  const frame=this.liveReplay.scene(teamId,now);
+  this.render(frame,now);
+ }
  setupAvatars(){this.avatarTeams=new Map();const assetUrl=new URL('../../assets/player-avatar-catalog.json',import.meta.url);
   fetch(assetUrl).then(r=>{if(!r.ok)throw Error('avatar catalog unavailable');return r.json()}).then(d=>{
    const byTeam=new Map();for(const p of d.players||[]){if(!byTeam.has(p.team_id))byTeam.set(p.team_id,[]);byTeam.get(p.team_id).push(p);}
@@ -42,13 +49,16 @@ export class StadiumScene{
  render(state,now){const gl=this.gl,canvas=this.canvas;const w=Math.min(2200,Math.max(1,canvas.clientWidth*devicePixelRatio)),h=Math.min(1300,Math.max(1,canvas.clientHeight*devicePixelRatio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;if(gl)gl.viewport(0,0,w,h)}
  if(gl){gl.clearColor(.055,.12,.16,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}const b=new MeshBuffer();b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();
  const defending=state.half==='top'?state.home:state.visitor;const dteam=TEAMS.find(t=>t.id===defending)||TEAMS[0];const ateam=TEAMS.find(t=>t.id!==(state.half==='top'?state.home:state.visitor)&&t.id===(state.half==='top'?state.visitor:state.home))||TEAMS[1];
- FIELDERS.forEach((f,i)=>{const pos=state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos;
+ FIELDERS.forEach((f,i)=>{const pos=state.liveFielders?.[f.key]||(state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos);
    const person=this.avatarTeams.get(defending)?.lineup?.[i],key=person?.id||`${defending}:${f.key}`;
    drawAvatar(b,[pos.x??pos[0],pos.z??pos[1]],{id:key,color:dteam.color,profile:person?.profile,role:i===0?'pitcher':'fielder',phase:state.phase,now,detail:i<2?1:0});
  });
  const activeBatter=this.avatarTeams.get(ateam.id)?.batters?.[(state.atBat-1)%Math.max(1,this.avatarTeams.get(ateam.id)?.batters?.length||1)];
  drawAvatar(b,[1.1,-.9],{id:activeBatter?.id||`${ateam.id}:batter`,profile:activeBatter?.profile,color:ateam.color,role:'batter',phase:state.phase,now});
- for(const [i,x,z] of [[0,23,-23],[1,0,-46],[2,-23,-23]])if(state.bases[i]){
+ if(state.liveRunners?.length){
+  for(const [i,p] of state.liveRunners.entries())drawAvatar(b,p,{id:`${ateam.id}:live-runner:${i}`,color:ateam.color,role:'runner',phase:'running',now,detail:0});
+ }
+ for(const [i,x,z] of [[0,23,-23],[1,0,-46],[2,-23,-23]])if(state.bases[i]&&!state.liveRunners?.length){
    const runner=this.avatarTeams.get(ateam.id)?.batters?.[(state.atBat-i-2+Math.max(1,this.avatarTeams.get(ateam.id)?.batters?.length||1))%Math.max(1,this.avatarTeams.get(ateam.id)?.batters?.length||1)];
    drawAvatar(b,[x+1.5,z+1.5],{id:runner?.id||`${ateam.id}:runner:${i}`,profile:runner?.profile,color:ateam.color,role:'runner',phase:state.phase,now,detail:0});
  }

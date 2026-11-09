@@ -9,7 +9,7 @@ const $=id=>document.getElementById(id);
 const fmt=n=>(n/100000000).toFixed(2)+' 億';
 function escapeHtml(t){return String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 export class GameUI{
- constructor(engine){this.e=engine;this.state=engine.s;this.modal='intro';this.lastMessage='';this.lastStamp=0;this.lastRole='';this.lastStatus='';this.lastPhase='';this.lastInning='';this.batToggle=false;this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachOpponent=null;this.coachDraft=null;this.liveList=null;this.liveSelected=null;this.liveData=null;this.liveRoster=null;this.liveStop=null;this.liveTimer=null;this.liveHeartbeat=null;this.liveLoading=false;this.liveBusy=false;this.liveAim={x:0,y:0};this.liveMeterAt=0;this.liveStepTimer=null;this.working=false;this.bind();this.showModal('intro');}
+ constructor(engine,scene=null){this.e=engine;this.scene=scene;this.liveReplayActive=false;this.state=engine.s;this.modal='intro';this.lastMessage='';this.lastStamp=0;this.lastRole='';this.lastStatus='';this.lastPhase='';this.lastInning='';this.batToggle=false;this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachOpponent=null;this.coachDraft=null;this.liveList=null;this.liveSelected=null;this.liveData=null;this.liveRoster=null;this.liveStop=null;this.liveTimer=null;this.liveHeartbeat=null;this.liveLoading=false;this.liveBusy=false;this.liveAim={x:0,y:0};this.liveMeterAt=0;this.liveStepTimer=null;this.working=false;this.bind();this.showModal('intro');}
  bind(){
  $('btn-menu').addEventListener('click',()=>this.showModal('dashboard'));
  $('modeBar').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(b)this.e.setMode(b.dataset.mode)});
@@ -40,15 +40,30 @@ export class GameUI{
  this.e.onMessage=msg=>{this.openToast(msg);this.render()};this.e.onUpdate=()=>this.render();
  }
  openToast(msg){$('toast').textContent=msg;$('toast').classList.add('shown');clearTimeout(this.toastHandle);this.toastHandle=setTimeout(()=>$('toast').classList.remove('shown'),1400)}
- showModal(type){if(type!=='live')this.stopLiveWatcher();this.modal=type;$('modal').classList.remove('hidden');this.renderModal();if(this.remote&&['dashboard','finance','season','gm','roster','fa','coach','live'].includes(type))this.loadRemote(type)}
- hideModal(){this.stopLiveWatcher();$('modal').classList.add('hidden');this.modal='';}
- async handleModalClick(e){const b=e.target.closest('[data-nav],[data-team],[data-start],[data-gm],[data-quick],[data-restart],[data-login],[data-logout],[data-refresh],[data-submit-roster],[data-offer],[data-coach-opponent],[data-coach-save],[data-coach-autofill],[data-coach-move],[data-live-select],[data-live-join],[data-live-mode],[data-live-cmd],[data-live-refresh],[data-live-pitch],[data-live-bat],[data-live-abs]');if(!b)return;
+ syncLiveDisplay(){
+  const immersive=this.modal==='live'&&this.liveReplayActive&&!!this.liveSelected;
+  $('modal').classList.toggle('live-immersive',immersive);
+  document.getElementById('app').classList.toggle('live-mode',immersive);
+ }
+ showModal(type){if(type!=='live')this.stopLiveWatcher();this.modal=type;$('modal').classList.remove('hidden');this.syncLiveDisplay();this.renderModal();if(this.remote&&['dashboard','finance','season','gm','roster','fa','coach','live'].includes(type))this.loadRemote(type)}
+ hideModal(){this.stopLiveWatcher();$('modal').classList.add('hidden');this.modal='';this.syncLiveDisplay();this.render();}
+ async handleModalClick(e){const b=e.target.closest('[data-nav],[data-team],[data-start],[data-gm],[data-quick],[data-restart],[data-login],[data-logout],[data-refresh],[data-submit-roster],[data-offer],[data-coach-opponent],[data-coach-save],[data-coach-autofill],[data-coach-move],[data-live-select],[data-live-join],[data-live-mode],[data-live-cmd],[data-live-refresh],[data-live-pitch],[data-live-bat],[data-live-abs],[data-live-stage],[data-live-replay]');if(!b)return;
  if(b.dataset.login!==undefined){if(this.working)return;const username=$('loginUser')?.value?.trim();const password=$('loginPass')?.value||'';this.working=true;try{const r=await signIn(username,password);this.remote=r.status;this.state.team=r.status.team_id||this.state.team;this.openToast('登入成功：'+(r.status.role==='gm'?'GM':'球隊經理人'));this.showModal('dashboard');}finally{this.working=false;}return;}
  if(b.dataset.logout!==undefined){await signOut();this.remote=null;this.remoteRoster=null;this.remoteFA=null;this.remoteCoach=null;this.coachDraft=null;$('connection').textContent='LOCAL';this.openToast('已登出正式聯盟');this.showModal('auth');return;}
  if(b.dataset.refresh!==undefined){await this.loadRemote(this.modal);return;}
  if(b.dataset.submitRoster!==undefined){if(!this.remote)return;const kind=b.dataset.submitRoster;const ids=[...$('modalBody').querySelectorAll('[data-roster-pick]:checked')].map(x=>Number(x.value));const cap=kind==='playoff32'?32:60;if(ids.length>cap)throw Error('超過 '+cap+' 人名單上限');await apiCall('submit-roster',{team_id:this.viewTeam(),kind,player_ids:ids});this.openToast('已儲存名單');await this.loadRemote('roster');return;}
  if(b.dataset.offer!==undefined){if(!this.remote)return;const playerId=Number($('faPlayer')?.value),salary=Number($('faSalary')?.value),years=Number($('faYears')?.value);await apiCall('offer-fa',{team_id:this.viewTeam(),player_id:playerId,salary_ntd:salary,years});this.openToast('接洽已送出');await this.loadRemote('fa');return;}
 
+ if(b.dataset.liveStage!==undefined){
+   if(!this.liveSelected)throw Error('請先選擇一場比賽');
+   this.liveReplayActive=!this.liveReplayActive;
+   this.syncLiveDisplay();this.renderModal();return;
+ }
+ if(b.dataset.liveReplay!==undefined){
+   if(!this.liveReplayActive) {this.liveReplayActive=true;this.syncLiveDisplay();}
+   this.scene?.liveReplay?.replay(performance.now());
+   this.openToast('重播最新一球／打席（僅視覺，不修改比賽結果）');return;
+ }
  if(b.dataset.liveSelect!==undefined){await this.watchLive(b.dataset.liveSelect);return;}
  if(b.dataset.liveJoin!==undefined){await this.watchLive(b.dataset.liveJoin,true);return;}
  if(b.dataset.liveRefresh!==undefined){await this.loadRemote('live');if(this.liveSelected)await this.fetchLiveGame();return;}
@@ -151,7 +166,7 @@ export class GameUI{
   }finally{this.liveLoading=false;}
  }
  async watchLive(gameId,join=false){
-  this.stopLiveWatcher();this.liveSelected=gameId;this.liveData=null;this.liveRoster=null;this.liveAim={x:0,y:0};
+  this.stopLiveWatcher();this.liveSelected=gameId;this.liveData=null;this.liveRoster=null;this.liveAim={x:0,y:0};this.syncLiveDisplay();
   if(join)await liveApi('join',{game_id:gameId,team_id:this.viewTeam()});
   await this.fetchLiveGame();
   const game=this.liveData?.game;
@@ -194,6 +209,7 @@ export class GameUI{
  if(this.modal==='live'&&this.remote){
   const selected=this.liveData?.game;
   $('modalBody').innerHTML=this.header('即時比賽同步與臨場總教練','伺服器逐球投打與總教練即時調度 · ABS 挑戰')+
+  `<div class="live-stage-buttons"><button class="btn accent" data-live-stage="1">${this.liveReplayActive?'回到完整操作面板':'開啟 3D 球場視角'}</button><button class="btn" data-live-replay="1" ${!this.liveSelected?'disabled':''}>3D 重播最新打席</button></div>`+
    (this.remote.role==='gm'?'<div class="team-grid">'+this.teamCards()+'</div>':'')+
    renderLivePanel({games:this.liveList?.games||[],selection:this.liveSelected,gameData:this.liveData,
     teamId:this.viewTeam(),players:this.liveRoster?.players||[],clockEnabled:this.liveList?.clock_enabled??false,
