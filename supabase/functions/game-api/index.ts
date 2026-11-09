@@ -50,7 +50,7 @@ Deno.serve(async (req: Request) => {
       team_id: isGM ? 'dragons' : member.team_id, sandbox: isGM, active_timeline_id: league.active_timeline_id };
 
     if (action === 'status') {
-      const [fin, games, recent, champs, clubPlayers, financialEvents, monthlyCharges] = await Promise.all([
+      const [fin, games, recent, champs, clubPlayers, financialEvents, monthlyCharges, completedLeagueGames] = await Promise.all([
         db.from('team_finances').select('team_id,cash_ntd,debt_ntd').eq('league_id', league.id).order('team_id'),
         db.from('games').select('id,season_year,home_team_id,away_team_id,scheduled_at,phase,home_score,away_score,season_stage,version')
           .eq('league_id', league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year)
@@ -61,11 +61,24 @@ Deno.serve(async (req: Request) => {
         db.from('league_champions').select('season_year,team_id').eq('league_id',league.id).order('season_year',{ascending:false}).limit(10),
         db.from('league_players').select('roster_status,monthly_salary_ntd').eq('league_id',league.id).eq('team_id',pickTeam).neq('roster_status','future'),
         db.from('finance_ledger').select('id,kind,amount_ntd,memo,created_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).order('created_at',{ascending:false}).limit(250),
-        db.from('monthly_finance_charges').select('month_no,salary_due_ntd,stadium_due_ntd,staff_due_ntd,travel_due_ntd,equipment_due_ntd,total_paid_ntd,total_owed_ntd,charged_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).order('month_no',{ascending:false}).limit(12)
+        db.from('monthly_finance_charges').select('month_no,salary_due_ntd,stadium_due_ntd,staff_due_ntd,travel_due_ntd,equipment_due_ntd,total_paid_ntd,total_owed_ntd,charged_at').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam).order('month_no',{ascending:false}).limit(12),
+        db.from('games').select('home_team_id,away_team_id,home_score,away_score,season_stage').eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('phase','final').limit(1000)
       ]);
-      if (fin.error || games.error || recent.error || champs.error || clubPlayers.error || financialEvents.error || monthlyCharges.error) return fail(req, 'DATABASE_READ_FAILED', 503);
+      if (fin.error || games.error || recent.error || champs.error || clubPlayers.error || financialEvents.error || monthlyCharges.error || completedLeagueGames.error) return fail(req, 'DATABASE_READ_FAILED', 503);
+      const standings=[...teamIds].map(team=>{
+        let wins=0,losses=0,draws=0,runsFor=0,runsAgainst=0;
+        for(const g of completedLeagueGames.data||[]){
+          if(g.season_stage!=='regular')continue;
+          const home=g.home_team_id===team,away=g.away_team_id===team;
+          if(!home&&!away)continue;
+          const ours=Number(home?g.home_score:g.away_score),theirs=Number(home?g.away_score:g.home_score);
+          if(ours>theirs)wins++;else if(ours<theirs)losses++;else draws++;
+          runsFor+=ours;runsAgainst+=theirs;
+        }
+        return {team_id:team,wins,losses,draws,runs_for:runsFor,runs_against:runsAgainst,win_pct:wins+losses?wins/(wins+losses):0};
+      }).sort((a,b)=>b.win_pct-a.win_pct||b.wins-a.wins||a.team_id.localeCompare(b.team_id));
       return json(req, { ok: true, ...responseBase, finances: fin.data, upcoming: games.data,
-        recent: recent.data, champions: champs.data,
+        recent: recent.data, champions: champs.data, standings,
         monthly_finance:(monthlyCharges.data||[])[0]||null,
         months_charged:(monthlyCharges.data||[]).length,
         season_monthly_costs_ntd:(monthlyCharges.data||[]).reduce((a,x)=>a+Number(x.total_paid_ntd||0),0),
