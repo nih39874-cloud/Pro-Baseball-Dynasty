@@ -138,9 +138,10 @@ function coach(){
 function season(){
  const games=state.session?.upcoming||[],recent=state.session?.recent||[];
  const current=state.gameTab==='schedule'?games:recent;
- const tabs=[['schedule','聯盟賽程'],['results','最新戰報'],['rules','賽事週期']];
+ const tabs=[['schedule','聯盟賽程'],['results','最新戰報'],['standings','聯盟排名'],['rules','賽事週期']];
  return '<div class="switch-tabs arena-tabs">'+tabs.map(([id,name])=>'<button data-gametab="'+id+'" class="'+(state.gameTab===id?'selected':'')+'">'+name+'</button>').join('')+'</div>'+
- (state.gameTab==='rules'?'<div class="league-schedule">'+
+ (state.gameTab==='standings'?'<div class="standings-board"><div class="standings-head"><span>排名</span><span>球隊</span><span>勝-敗-和</span><span>勝率</span></div>'+(state.session?.standings||[]).map((t,i)=>'<div class="standings-row '+(t.team_id===ownTeam()?'mine':'')+'"><span>'+(i+1)+'</span><b>'+escape(tname(t.team_id))+'</b><span>'+t.wins+'-'+t.losses+'-'+t.draws+'</span><strong>'+(t.wins+t.losses?t.win_pct.toFixed(3):'—')+'</strong></div>').join('')+'</div>':
+ state.gameTab==='rules'?'<div class="league-schedule">'+
  [['MON','週一訓練','球員成長、簽約結算'],['TUE–FRI','例行賽','08:00 – 23:00'],['SAT','季後賽','12:00 – 20:00'],['OFF','休賽管理','陣容與市場管理']].map(([day,title,desc])=>'<div class="schedule-cycle"><span>'+day+'</span><div><b>'+title+'</b><small>'+desc+'</small></div></div>').join('')+'</div>':
  '<div class="list-scroller match-feed">'+current.map(g=>'<div class="match-card"><div class="match-card-label"><span>'+escape(g.season_stage==='playoff'?'季後賽':'例行賽')+'</span><small>'+toDate(g.scheduled_at)+'</small></div><div class="match-card-grid"><div><b>'+escape(tname(g.away_team_id))+'</b><small>客隊</small></div><strong>'+(g.away_score??'—')+'<i>:</i>'+(g.home_score??'—')+'</strong><div><b>'+escape(tname(g.home_team_id))+'</b><small>主隊</small></div></div></div>').join('')+(current.length?'':empty('目前還沒有賽事紀錄，聯盟啟動後將在此顯示'))+'</div>');
 }
@@ -175,6 +176,7 @@ function finance(){
  '<div class="finance-explain">每 10 場例行賽代表一個遊戲月份，球季共 12 個月。固定支出與每場球賽收支分開計算；資金不足轉為負債。票價、雜支和球場維護費均為遊戲估值。</div>';
 }
 function club(){
+ const history=(state.session?.champions||[]).map(x=>'<div class="lineup-row"><span>'+escape(x.season_year)+' 年</span><b>'+escape(tname(x.team_id))+'</b></div>').join('');
  return box('球團資訊','<div class="financial-row"><span>所屬球隊</span><b>'+escape(gm()?'GM 平行球團':tname(ownTeam()))+'</b></div><div class="financial-row"><span>遊戲球季</span><b>'+escape(state.session?.year)+'</b></div><div class="financial-row"><span>管理模式</span><b>'+(gm()?'獨立模擬':'六隊真人')+'</b></div>');
 }
 function lab(){
