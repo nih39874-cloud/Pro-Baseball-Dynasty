@@ -19,11 +19,16 @@ jobs:
       - name: Install Blender
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
-      - name: Author and export player and stadium GLB using Blender
+          sudo apt-get install -y blender python3-numpy
+      - name: Verify Blender GLTF exporter dependencies
         run: |
-          blender --background --factory-startup --python scripts/blender/build_player.py
-          blender --background --factory-startup --python scripts/blender/build_stadium.py
+          PYTHONPATH=/usr/lib/python3/dist-packages blender --background --factory-startup --python-exit-code 1 --python-expr "import numpy; import io_scene_gltf2; print('numpy version:', numpy.__version__)"
+      - name: Author and export player and stadium GLB using Blender
+        env:
+          PYTHONPATH: /usr/lib/python3/dist-packages
+        run: |
+          blender --background --factory-startup --python-exit-code 1 --python scripts/blender/build_player.py
+          blender --background --factory-startup --python-exit-code 1 --python scripts/blender/build_stadium.py
       - name: Validate exported asset
         run: |
           test -s assets/models/player_base.glb
