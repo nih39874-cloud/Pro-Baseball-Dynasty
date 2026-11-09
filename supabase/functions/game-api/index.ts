@@ -125,6 +125,12 @@ Deno.serve(async (req: Request) => {
       const {data,error}=await db.rpc('server_gm_simulate_games',{p_actor:user.id,p_count:count});
       return error?fail(req,error.message,409):json(req,{ok:true,simulation:data});
     }
+    if (action === 'scout-player') {
+      const playerId=Number(body.player_id);
+      need(Number.isSafeInteger(playerId)&&playerId>0,'INVALID_PLAYER_ID');
+      const {data,error}=await db.rpc('server_scout_player',{p_actor:user.id,p_player:playerId});
+      return error?fail(req,error.message,409):json(req,{ok:true,report:data});
+    }
     if (action === 'trade-board') {
       if(isGM)return fail(req,'OFFICIAL_MANAGERS_ONLY',403);
       const [players,offers]=await Promise.all([
