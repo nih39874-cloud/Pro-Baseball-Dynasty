@@ -54,7 +54,7 @@ export function parseGlbGeometry(buffer){
     const idx=primitive.indices!==undefined?accessor(primitive.indices):null;
     const count=idx?json.accessors[primitive.indices].count:pAccessor.count;
     const mat=json.materials?.[primitive.material],base=mat?.pbrMetallicRoughness?.baseColorFactor||[.7,.72,.75,1];
-    const isJersey=/jersey|uniform|sleeve/i.test(mat?.name||'');
+    const isJersey=/^(jersey_fabric|uniform_fabric|team_sleeve)$/i.test(mat?.name||'');
     for(let i=0;i<count;i++){
      const j=idx?idx(i)[0]:i,v=pos(j);
      const xyz=[matrix[0]*v[0]+matrix[4]*v[1]+matrix[8]*v[2]+matrix[12],
