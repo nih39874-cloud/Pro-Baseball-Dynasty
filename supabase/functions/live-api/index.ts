@@ -58,7 +58,9 @@ Deno.serve(async(req:Request)=>{
     ]);
     if(sess.error||control.error||events.error||pitch.error)return fail(req,'MATCH_READ_FAILED',503);
     const ps=pitch.data;
-    const publicPitch=ps?.pending_pitch?{id:ps.pending_pitch.id,x:ps.pending_pitch.x,y:ps.pending_pitch.y,
+    // Keep unresolved pitch position and private umpire verdict on the server.
+    // Realtime callbacks trigger a fresh authorized status read, never broadcast private coordinates.
+    const publicPitch=ps?.pending_pitch?{id:ps.pending_pitch.id,
       pitch_type:ps.pending_pitch.pitch_type,released_at:ps.pending_pitch.released_at}:null;
     const review=ps?.review?{pitch_id:ps.review.pitch_id,until:ps.review.until,called_strike:ps.review.called_strike}:null;
     return reply(req,{ok:true,game,session:sess.data,controls:control.data||[],events:(events.data||[]).reverse(),
