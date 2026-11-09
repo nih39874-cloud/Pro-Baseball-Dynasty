@@ -200,16 +200,19 @@ export class StadiumScene{
   }).catch(()=>{/* Real roster assets are optional in the offline practice scene. */});}
  render(state,now){const gl=this.gl,canvas=this.canvas;const w=Math.min(2200,Math.max(1,canvas.clientWidth*devicePixelRatio)),h=Math.min(1300,Math.max(1,canvas.clientHeight*devicePixelRatio));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;if(gl)gl.viewport(0,0,w,h)}
  if(gl){gl.clearColor(.43,.63,.80,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.disable(gl.CULL_FACE);}const b=new MeshBuffer();if(!gl){b.p=this.staticMesh.p.slice();b.c=this.staticMesh.c.slice();}
+ const battingPOV=currentRole(state)==='batter'&&!['fielding','fielderChoice'].includes(state.phase);
  const defending=state.half==='top'?state.home:state.visitor;const dteam=TEAMS.find(t=>t.id===defending)||TEAMS[0];const ateam=TEAMS.find(t=>t.id!==(state.half==='top'?state.home:state.visitor)&&t.id===(state.half==='top'?state.visitor:state.home))||TEAMS[1];
- FIELDERS.forEach((f,i)=>{const pos=state.liveFielders?.[f.key]||(state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos);
+ FIELDERS.forEach((f,i)=>{if(battingPOV&&f.key==='C')return;const pos=state.liveFielders?.[f.key]||(state.selectedFielder?.key===f.key&&state.fielderPos?state.fielderPos:f.pos);
    const person=this.avatarTeams.get(defending)?.lineup?.[i],key=person?.id||`${defending}:${f.key}`;
    if(this.playerGlb){
     appendGlbActor(b,this.playerGlb,pos.x??pos[0],pos.z??pos[1],rgb(dteam.color),person?.profile?.height_scale||1);
    }else drawAvatar(b,[pos.x??pos[0],pos.z??pos[1]],{id:key,color:dteam.color,profile:person?.profile,role:i===0?'pitcher':'fielder',positionKey:f.key,phase:state.phase,now,detail:i<2?1:0});
  });
  const activeBatter=this.avatarTeams.get(ateam.id)?.batters?.[(state.atBat-1)%Math.max(1,this.avatarTeams.get(ateam.id)?.batters?.length||1)];
+ if(!battingPOV){
  if(this.playerGlb)appendGlbActor(b,this.playerGlb,1.1,-.9,rgb(ateam.color),activeBatter?.profile?.height_scale||1);
  else drawAvatar(b,[1.1,-.9],{id:activeBatter?.id||`${ateam.id}:batter`,profile:activeBatter?.profile,color:ateam.color,role:'batter',phase:state.phase,now});
+ }
  if(state.liveRunners?.length){
   for(const [i,p] of state.liveRunners.entries())drawAvatar(b,p,{id:`${ateam.id}:live-runner:${i}`,color:ateam.color,role:'runner',phase:'running',now,detail:0});
  }
@@ -256,7 +259,7 @@ export class StadiumScene{
  const role=currentRole(state);let eye,target;
  if(role==='coach'){eye=[state.coachPos.x,1.65,state.coachPos.z];target=[eye[0]+Math.sin(this.cameraYaw)*8,1.62,eye[2]-Math.cos(this.cameraYaw)*8];}
  else if(role==='pitcher'){eye=[.75,1.78,-16.1];target=[state.aim.x*.2,1.12,0];}
- else if(role==='batter'){eye=[2.75,1.72,2.5];target=[0,1.16,-18.0];}
+ else if(role==='batter'){eye=[0,1.68,2.4];target=[0,1.18,-18.0];}
  else if(role==='auto'){eye=[24,16,22];target=[0,0.5,-30];}
  else{eye=[-4,4,4];target=[0,0,-29];}
  if((state.phase==='fielding'||state.phase==='fielderChoice')&&role!=='coach'&&role!=='auto'){
