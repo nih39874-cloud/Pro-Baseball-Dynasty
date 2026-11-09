@@ -18,24 +18,33 @@ function login(){
  <button type="submit" class="primary" ${state.busy?'disabled':''}>${state.busy?'登入中…':'登入球團'}</button></form>
  ${state.error?`<p class="alert" role="alert">${esc(state.error)}</p>`:''}<p class="footnote">固定七個帳號：GM + 六支中職球隊。沒有自行註冊功能。</p></main>`);
 }
-function header(){return `<header class="app-header"><div><span class="eyebrow">DIAMOND DYNASTY</span><h1>鑽石王朝</h1></div><button class="logout" data-action="logout">登出</button></header>`}
-function navigation(){return `<nav class="bottom-nav">${[['home','首頁','⌂'],['roster','球員','♙'],['coach','打線','▤'],['season','賽程','◷'],['market','FA','＄']].map(([id,label,icon])=>`<button data-tab="${id}" class="${state.tab===id?'active':''}"><span>${icon}</span><small>${label}</small></button>`).join('')}</nav>`}
+function brandColor(){return TEAMS.find(x=>x.id===team())?.color||'#d9af5e'}
+function header(){const current=TEAMS.find(x=>x.id===team());return `<header class="app-header"><div class="brand-lockup"><span class="brand-gem">◆</span><div><span class="eyebrow">PRO BASEBALL DYNASTY</span><h1>鑽石王朝</h1></div></div><div class="header-tools"><span class="role-tag">${state.status?.role==='gm'?'LEAGUE GM':esc(current?.short||'球團')}</span><button class="logout" data-action="logout" aria-label="登出">⏻</button></div></header>`}
+function navigation(){return `<nav class="bottom-nav" aria-label="主要導覽">${[['home','總部','⌂'],['roster','名單','▦'],['coach','戰術','▤'],['season','賽事','◷'],['market','市場','↗']].map(([id,label,icon])=>`<button aria-label="${label}" aria-current="${state.tab===id?'page':'false'}" data-tab="${id}" class="${state.tab===id?'active':''}"><span class="nav-icon">${icon}</span><small>${label}</small></button>`).join('')}</nav>`}
 const row=(a,b)=>`<div class="data-row"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`;
 const warning=s=>`<div class="notice">${esc(s)}</div>`;
 function home(){
- const s=state.status,f=s.finances?.find(x=>x.team_id===team());
- return `<section class="card hero"><div class="eyebrow">球團總部 · ${esc(s.year)} 球季</div><h2>${esc(names[team()]||'聯盟 GM')}</h2><div class="status-line"><span>${esc(s.phase||'未開賽')}</span><strong>${s.clock_enabled?'賽季時鐘啟用':'正式開季前暫停'}</strong></div></section>
- <div class="stats-grid"><div class="card"><small>球團資金</small><b>NT$ ${money(f?.cash_ntd)}</b></div><div class="card"><small>球季狀態</small><b>${s.is_ready?'資料已備妥':'等待正式開季'}</b></div></div>
- ${s.role==='gm'?`<section class="card"><h3>GM：查看球隊</h3><select id="team-selector">${TEAMS.map(t=>`<option value="${esc(t.id)}" ${team()===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select><p class="muted">GM 能檢視六隊；正式球隊互打，沒有 AI 經營隊伍。</p></section>`:''}
- <section class="card"><h3>聯盟週期</h3>${row('星期一','訓練與簽約結算')}${row('星期二至五 08:00–23:00','例行賽')}${row('星期六 12:00–20:00','季後賽／台灣大賽')}${row('其他時間','非比賽管理時段')}</section>
- <section class="card"><h3>最新賽果</h3>${(s.recent||[]).slice(0,6).map(g=>row(`${names[g.away_team_id]||g.away_team_id} @ ${names[g.home_team_id]||g.home_team_id}`,`${g.away_score} : ${g.home_score}`)).join('')||warning('目前尚無已完成比賽。')}</section>`;
+ const s=state.status,f=s.finances?.find(x=>x.team_id===team()),current=TEAMS.find(x=>x.id===team());
+ const next=(s.upcoming||[]).find(g=>g.phase!=='final')||(s.upcoming||[])[0];
+ const label=next?`${names[next.away_team_id]||next.away_team_id} vs ${names[next.home_team_id]||next.home_team_id}`:'尚無下一場已排定賽事';
+ const phaseText=s.clock_enabled?'賽程運行中':s.is_ready?'等待聯盟開賽':'尚未啟用正式比賽';
+ return `<section class="card hero"><div class="hero-glow"></div><div class="hero-top"><span class="eyebrow">SEASON ${esc(s.year)} · CLUB OFFICE</span><span class="live-chip">${s.clock_enabled?'● LIVE':'● 待開賽'}</span></div>
+ <div class="club-identity"><span class="club-emblem" aria-hidden="true">${esc((current?.short||'GM').slice(0,2))}</span><div><small>${s.role==='gm'?'聯盟管理檢視':'球團經營者'}</small><h2>${esc(names[team()]||'聯盟總管理處')}</h2><span class="club-sub">永久聯盟 · 第 ${esc(s.year)} 球季</span></div></div><div class="hero-bottom"><span>${esc(phaseText)}</span><span class="phase-dot">◆</span></div></section>
+ <div class="section-caption"><span>CLUB OVERVIEW</span><span>球團概況</span></div>
+ <div class="kpi-grid"><div class="card kpi"><span class="kpi-icon">▣</span><small>可用資金</small><b>NT$ ${money(f?.cash_ntd)}</b><span class="kpi-foot">球團營運資產</span></div><div class="card kpi"><span class="kpi-icon">◈</span><small>球季狀態</small><b>${s.is_ready?'準備就緒':'尚待啟用'}</b><span class="kpi-foot">正式聯盟狀態</span></div></div>
+ <section class="card fixture-card"><div class="card-heading"><h3>下一場對戰</h3><span class="section-kicker">NEXT FIXTURE</span></div><div class="match-spotlight"><div class="match-icon">⚾</div><div><b>${esc(label)}</b><small>${next?esc(new Date(next.scheduled_at).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}))+' · 台灣時間':'賽程開放後將顯示於此'}</small></div></div><button class="card-link" data-tab="season">查看聯盟賽程 <span>→</span></button></section>
+ <div class="section-caption"><span>MANAGEMENT</span><span>快捷管理</span></div>
+ <div class="shortcut-grid"><button data-tab="roster"><span class="shortcut-symbol">▦</span><strong>球員名單</strong><small>一軍／二軍</small></button><button data-tab="coach"><span class="shortcut-symbol">▤</span><strong>戰術配置</strong><small>先發／調度</small></button><button data-tab="market"><span class="shortcut-symbol">↗</span><strong>自由球員</strong><small>簽約／市場</small></button><button data-tab="season"><span class="shortcut-symbol">◷</span><strong>聯盟賽程</strong><small>賽果／對戰</small></button></div>
+ ${s.role==='gm'?`<section class="card gm-team"><div class="card-heading"><h3>GM 球隊檢視</h3><span class="section-kicker">ALL CLUBS</span></div><select id="team-selector">${TEAMS.map(t=>`<option value="${esc(t.id)}" ${team()===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select><p class="muted">僅供 GM 檢視六支真人經營球隊。</p></section>`:''}
+ <section class="card"><div class="card-heading"><h3>聯盟運作週期</h3><span class="section-kicker">WEEKLY CYCLE</span></div><div class="timeline-row"><span class="time-day training">MON</span><div><b>訓練日</b><small>簽約結算 · 球員訓練</small></div></div><div class="timeline-row"><span class="time-day regular">TUE–FRI</span><div><b>08:00–23:00 例行賽</b><small>系統自動計算對戰結果</small></div></div><div class="timeline-row"><span class="time-day postseason">SAT</span><div><b>12:00–20:00 季後賽</b><small>挑戰賽 · 台灣大賽</small></div></div><div class="timeline-row"><span class="time-day break">OFF</span><div><b>非比賽時段</b><small>FA · 交易 · 休賽期作業</small></div></div></section>
+ <section class="card"><div class="card-heading"><h3>近期戰報</h3><span class="section-kicker">RECENT RESULTS</span></div>${(s.recent||[]).slice(0,5).map(g=>`<div class="result-row"><span>${esc(names[g.away_team_id]||g.away_team_id)}</span><b>${esc(g.away_score)} : ${esc(g.home_score)}</b><span>${esc(names[g.home_team_id]||g.home_team_id)}</span></div>`).join('')||warning('本球季尚無已結束的比賽。')}</section>`;
 }
 function roster(){
  const d=state.roster;
  if(!d)return `<section class="card">正在讀取球員名單…</section>`;
  const ps=d.players||[],active=ps.filter(x=>x.roster_status==='active');
- return `<section class="card"><h3>球隊名單</h3><div class="stats-grid"><div><small>一軍</small><h2>${active.length}/28</h2></div><div><small>本隊球員</small><h2>${ps.length}</h2></div></div><p class="muted">季後賽 32 人／季末保留 60 人，未簽約球員永久保留在資料庫。</p></section>
- <section class="card"><h3>球員資料</h3>${ps.map(p=>`<div class="player"><div><b>${esc(p.players_master?.full_name||p.master_player_id)}</b><small>${esc(p.players_master?.primary_position||'未分類')} · ${p.roster_status==='active'?'一軍':'二軍／預備'}</small></div><span class="skill">球探報告待校準</span></div>`).join('')||warning('此球隊尚無球員資料。')}</section>`;
+ return `<section class="card"><div class="card-heading"><h3>球隊名單</h3><span class="section-kicker">ROSTER</span></div><div class="stats-grid"><div><small>一軍</small><h2>${active.length}/28</h2></div><div><small>本隊球員</small><h2>${ps.length}</h2></div></div><p class="muted">季後賽 32 人／季末保留 60 人，未簽約球員永久保留在資料庫。</p></section>
+ <section class="card"><div class="card-heading"><h3>球員資料</h3><span class="section-kicker">PLAYER DATABASE</span></div>${ps.map(p=>`<div class="player"><div><b>${esc(p.players_master?.full_name||p.master_player_id)}</b><small>${esc(p.players_master?.primary_position||'未分類')} · ${p.roster_status==='active'?'一軍':'二軍／預備'}</small></div><span class="skill">球探報告待校準</span></div>`).join('')||warning('此球隊尚無球員資料。')}</section>`;
 }
 function coach(){
  const d=state.coach;if(!d)return `<section class="card">正在讀取打線…</section>`;
@@ -44,18 +53,19 @@ function coach(){
  const opp=state.opponent&&state.opponent!==team()?state.opponent:opps[0]?.id;
  const saved=(d.lineups||[]).find(x=>x.opponent_team_id===opp);
  const namesById=new Map((d.players||[]).map(p=>[p.master_player_id,p.players_master?.full_name||String(p.master_player_id)]));
- return `<section class="card"><h3>對戰專用先發陣容</h3><label>對手球隊</label><select id="opponent">${opps.map(t=>`<option value="${t.id}" ${t.id===opp?'selected':''}>${esc(t.name)}</option>`).join('')}</select><p class="muted">每支球隊擁有對其他五隊的獨立先發設定。所有比賽由電腦自動模擬。</p>
+ return `<section class="card"><div class="card-heading"><h3>對戰專用先發陣容</h3><span class="section-kicker">TACTICS</span></div><label>對手球隊</label><select id="opponent">${opps.map(t=>`<option value="${t.id}" ${t.id===opp?'selected':''}>${esc(t.name)}</option>`).join('')}</select><p class="muted">每支球隊擁有對其他五隊的獨立先發設定。所有比賽由電腦自動模擬。</p>
  ${saved?`<h4>目前打線</h4>${saved.batting_order.map((id,i)=>row(`${i+1} 棒`,namesById.get(id)||id)).join('')}` : warning('目前尚無自訂打線。')}
  <button class="secondary" data-action="autolineup">讀取建議打線</button></section>
  <section class="card"><h3>一軍球員管理</h3>${available.map(p=>`<div class="player"><b>${esc(p.players_master?.full_name||p.master_player_id)}</b><button class="small" data-demote="${p.master_player_id}">下二軍</button></div>`).join('')||warning('沒有一軍球員。')}</section>`;
 }
-function season(){const games=state.status?.upcoming||[];return `<section class="card"><h3>賽程與賽果</h3><p class="muted">永久聯盟，每週循環進行新的球季。</p>${games.map(g=>`<div class="game"><small>${esc((g.scheduled_at||'').slice(0,16).replace('T',' '))} UTC</small><div>${esc(names[g.away_team_id]||g.away_team_id)} <b>${g.away_score??'–'} : ${g.home_score??'–'}</b> ${esc(names[g.home_team_id]||g.home_team_id)}</div></div>`).join('')||warning('尚無已排定的近期賽事。')}</section>`}
-function market(){const list=state.fa?.players||[];return `<section class="card"><h3>自由球員市場</h3><p class="muted">球員可選擇薪資以外的因素；合約結果統一於週一訓練開始時公布。未簽約球員不會消失。</p>${list.map(p=>`<div class="player"><div><b>${esc(p.players_master?.full_name||p.master_player_id)}</b><small>${esc(p.players_master?.primary_position||'')}</small></div><button class="small" data-offer="${p.master_player_id}">報價</button></div>`).join('')||warning('目前沒有可接洽的球員。')}</section>`}
+function season(){const games=state.status?.upcoming||[];return `<section class="card"><div class="card-heading"><h3>賽程與賽果</h3><span class="section-kicker">LEAGUE FIXTURES</span></div><p class="muted">永久聯盟，每週循環進行新的球季。</p>${games.map(g=>`<div class="game"><small>${esc((g.scheduled_at||'').slice(0,16).replace('T',' '))} UTC</small><div>${esc(names[g.away_team_id]||g.away_team_id)} <b>${g.away_score??'–'} : ${g.home_score??'–'}</b> ${esc(names[g.home_team_id]||g.home_team_id)}</div></div>`).join('')||warning('尚無已排定的近期賽事。')}</section>`}
+function market(){const list=state.fa?.players||[];return `<section class="card"><div class="card-heading"><h3>自由球員市場</h3><span class="section-kicker">FREE AGENTS</span></div><p class="muted">球員可選擇薪資以外的因素；合約結果統一於週一訓練開始時公布。未簽約球員不會消失。</p>${list.map(p=>`<div class="player"><div><b>${esc(p.players_master?.full_name||p.master_player_id)}</b><small>${esc(p.players_master?.primary_position||'')}</small></div><button class="small" data-offer="${p.master_player_id}">報價</button></div>`).join('')||warning('目前沒有可接洽的球員。')}</section>`}
 function render(){
  if(!state.status){login();return}
  const title={home:'球團總部',roster:'球員名單',coach:'戰術與打線',season:'聯盟賽程',market:'自由球員'}[state.tab];
  const body={home,roster,coach,season,market}[state.tab]();
- shell(`${header()}<main class="content"><div class="section-head"><h2>${title}</h2><button data-action="refresh" class="text-button">重新整理</button></div>${state.error?`<div class="alert" role="alert">${esc(state.error)}</div>`:''}${body}</main>${navigation()}`);
+ root.style.setProperty("--club-accent",brandColor());
+ shell(`${header()}<main class="content"><div class="section-head"><div><span class="eyebrow">CLUB MANAGEMENT</span><h2>${title}</h2></div><button data-action="refresh" class="text-button" aria-label="重新整理">↻ 更新</button></div>${state.error?`<div class="alert" role="alert">${esc(state.error)}</div>`:''}${body}</main>${navigation()}`);
 }
 async function fetchTab(){
  try{
