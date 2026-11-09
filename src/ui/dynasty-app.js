@@ -49,7 +49,7 @@ function roster(){
   const selectedIds=state.openingIds||[];
   const rows=eligible.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
   return '<div class="compact-summary"><div><small>開季球季</small><b>'+escape(d.year)+'</b></div><div><small>已選球員</small><b>'+selectedIds.length+'/28</b></div><div><small>開季狀態</small><b>'+(d.opening_roster?.source==='manual'?'已提交':'預設名單')+'</b></div></div>'+
-   '<div class="roster-tip">開季前一次選擇 28 人；未提交就沿用上季季末一軍名單（不含已離隊球員）。</div>'+
+   '<div class="roster-tip">點選二軍球員即可選入新球季一軍，若滿 28 人請先取消其他球員。開季前可重選；未提交則沿用上季季末一軍。</div>'+
    '<div class="inline-search"><input id="filter-players" placeholder="搜尋可選球員" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
    '<div class="list-scroller">'+rows.map(p=>'<button class="list-row opening-row '+(selectedIds.includes(p.master_player_id)?'checked':'')+'" data-opening-toggle="'+p.master_player_id+'"><span class="selection-indicator">'+(selectedIds.includes(p.master_player_id)?'✓':'○')+'</span><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(p.roster_status==='active'?'上季一軍':'二軍')+'</small></span></button>').join('')+'</div>'+
    '<div class="roster-actions"><button class="secondary-action" data-action="cancel-opening">返回</button><button class="primary-action" data-action="save-opening" '+(selectedIds.length===Math.min(28,eligible.length)?'':'disabled')+'>確認開季名單</button></div>';
@@ -65,9 +65,9 @@ function roster(){
   return '<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(active?'一軍':reserve?'二軍／預備':'其他狀態')+'</small></button>'+
    (action&&moveEnabled?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
  };
- const notice=pending?'開季名單準備期間：一般升降已停用，可重新選擇開季 28 人。':seasonClosed?'本球季已結束：一軍／二軍升降停用，等待下季選名單。':'降二軍後 4 小時才能再升一軍；升一軍後可立即下放。';
+ const notice=pending?'目前尚未開賽：請按上方「選擇開季 28 人」，勾選要升一軍的球員。開賽後恢復單人升降按鈕。':seasonClosed?'本球季已結束：一軍／二軍升降停用，等待下季選名單。':'降二軍後 4 小時才能再升一軍；升一軍後可立即下放。';
  return '<div class="compact-summary"><div><small>全部球員</small><b>'+all.length+'</b></div><div><small>一軍名單</small><b>'+currentActive+'/28</b></div><div><small>季末上限</small><b>60</b></div></div>'+
- (pending?'<button class="opening-entry" data-action="open-opening"><span>開季 28 人名單</span><strong>'+(d.opening_roster?.source==='manual'?'已提交 · 可修改':'預設沿用上季')+' ›</strong></button>':'')+
+ (pending?'<button class="opening-entry" data-action="open-opening"><span>選擇開季 28 人（含升一軍）</span><strong>'+(d.opening_roster?.source==='manual'?'已提交 · 可修改':'預設沿用上季')+' ›</strong></button>':'')+
  '<div class="switch-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+'</button>').join('')+'</div>'+
  '<div class="inline-search"><input id="filter-players" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
  '<div class="roster-tip">'+notice+'</div>'+
