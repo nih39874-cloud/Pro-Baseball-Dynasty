@@ -395,3 +395,20 @@ input::placeholder{color:#7c94aa}
 .standings-row b{font-size:12px;color:#e6f3fc}.standings-row strong{font-size:12px;color:#b9ef98}
 .standings-row.mine{background:#2b4c4b;border-radius:7px}
 .arena-tabs{display:flex;gap:4px}.arena-tabs button{flex:1;min-width:0;padding:8px 3px;font-size:11px}
+
+.roster-stats-entry{flex-shrink:0;background:linear-gradient(100deg,#2e5267,#213748);border:1px solid #5b8196;color:#c8f8ed;border-radius:9px;font-size:12px;padding:9px;font-weight:800}
+.stats-player-row{display:flex;align-items:center;justify-content:space-between;padding:11px;border-bottom:1px solid #364d60;gap:10px;color:#f4faff}
+.stats-player-row>div{min-width:0}.stats-player-row strong{font-size:13px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stats-player-row small{font-size:10px;color:#9ab7c9;margin-top:3px;display:block}
+.stats-player-row>div:last-child{text-align:right}.stats-player-row b{font-size:15px;color:#bfec9a}
+.trade-form{background:#192c40;border:1px solid #3f5e73;border-radius:12px;padding:12px;flex-shrink:0}
+.trade-form form{display:flex;flex-direction:column;gap:6px}
+.trade-form label{font-size:10px;color:#b6c9d8;font-weight:700}
+.trade-form select{padding:8px;color:#d8f2ff;border:1px solid #45677e;border-radius:6px;max-width:100%}
+.trade-form button{padding:10px;border:0;border-radius:8px;background:#b6f292;color:#1a2d24;font-weight:900;margin-top:5px}
+.trade-form button:disabled{opacity:.4}
+.trade-history{flex:1;min-height:0}.trade-offer-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #354d61}
+.trade-offer-row b{display:block;font-size:12px;color:#eef7ff}.trade-offer-row small{display:block;font-size:10px;color:#92b0c7;margin:4px 0}
+.trade-decision{display:flex;gap:4px}.trade-decision button{padding:6px 7px;border-radius:7px;border:1px solid #607d90;background:#315269;color:#fff;font-size:10px}
+.trade-decision button:first-child{background:#347c55;border-color:#589f76}
+@media(max-height:740px){.trade-form{padding:8px}.trade-form select{padding:5px}.trade-form button{padding:6px}.trade-offer-row{padding:7px}}
