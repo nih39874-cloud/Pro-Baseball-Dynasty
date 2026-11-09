@@ -154,3 +154,10 @@ select,input{border:1px solid var(--border);padding:11px;border-radius:8px;backg
 .picker-list small{display:block;font-size:10px;color:#7d91a0;padding-top:3px}
 .picker-stats{font-size:11px;color:#53758b;white-space:nowrap}
 @media(max-height:690px){.editor-shell{gap:4px}.editor-tabs button{padding:6px}.lineup-edit-row{padding:1px 6px}.bat-num{height:23px}.lineup-person b{font-size:12px}.lineup-person small{font-size:9px}.reorder button{height:18px}.editor-actions button{padding:7px}.editor-hint{font-size:9px}}
+
+/* The defense tab contains 9 fielding positions plus the designated hitter. */
+.editor-rows.defense-rows{grid-template-rows:repeat(10,minmax(0,1fr));gap:3px}
+.defense-rows .lineup-edit-row{padding-block:1px}
+.defense-rows .lineup-person{padding-block:2px}
+.defense-rows .lineup-person small{margin-top:1px}
+@media(max-height:700px){.editor-rows.defense-rows{gap:2px}.defense-rows .lineup-edit-row{padding-block:0}.defense-rows .lineup-person b{font-size:12px}.defense-rows .lineup-person small{font-size:9px}}
