@@ -11,7 +11,9 @@ const fmt=n=>Number(n??0).toLocaleString('zh-TW');
 const gm=()=>state.session?.role==='gm';
 const ownTeam=()=>gm()?'dragons':state.session?.team_id;
 const tname=id=>names[id]||id||'聯盟';
-const money=n=>n==null?'—':'
+const money=n=>n==null?'—':'NT$ '+fmt(n);
+const cashShort=n=>n==null?'—':Number(n)>=100000000?(Number(n)/100000000).toFixed(2)+' 億':Number(n)>=10000?(Number(n)/10000).toFixed(0)+' 萬':fmt(n);
+const salaryTag=p=>({contemporaneous_report:'當年公開','2024_compilation':'2024 整理','game_estimate':'遊戲推估'}[p?.salary_reference?.evidence_type]||'待確認');
 const box=(title,content,extra='')=>'<section class="panel '+extra+'"><div class="panel-title">'+title+'</div>'+content+'</section>';
 const empty=s=>'<div class="empty">'+escape(s)+'</div>';
 const btn=(label,route,icon='◇')=>'<button type="button" class="menu-btn" data-page="'+route+'"><span class="menu-icon">'+icon+'</span><span>'+label+'</span><span class="menu-chev">›</span></button>';
