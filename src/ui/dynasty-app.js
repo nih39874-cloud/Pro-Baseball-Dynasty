@@ -5,7 +5,7 @@ const root=document.querySelector('#app');
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
 const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,
-  search:'',filter:'all',gameTab:'schedule',selectedOpponent:'brothers',openingMode:false,openingIds:null,lineupDraft:null,lineupTab:'batting',lineupPicker:null,notice:'',loading:false,loginUser:'GM'};
+  search:'',filter:'all',gameTab:'schedule',marketTab:'available',selectedOpponent:'brothers',openingMode:false,openingIds:null,lineupDraft:null,lineupTab:'batting',lineupPicker:null,notice:'',loading:false,loginUser:'GM'};
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const fmt=n=>Number(n??0).toLocaleString('zh-TW');
 const gm=()=>state.session?.role==='gm';
@@ -138,20 +138,27 @@ function coach(){
 function season(){
  const games=state.session?.upcoming||[],recent=state.session?.recent||[];
  const current=state.gameTab==='schedule'?games:recent;
- return '<div class="switch-tabs"><button data-gametab="schedule" class="'+(state.gameTab==='schedule'?'selected':'')+'">賽程</button><button data-gametab="results" class="'+(state.gameTab==='results'?'selected':'')+'">賽果</button><button data-gametab="rules" class="'+(state.gameTab==='rules'?'selected':'')+'">聯盟時程</button></div>'+
- (state.gameTab==='rules'?box('每週比賽時段','<div class="lineup-row">星期一 <b>訓練日</b></div><div class="lineup-row">星期二至五 <b>08:00–23:00</b></div><div class="lineup-row">星期六 <b>12:00–20:00 季後賽</b></div><div class="lineup-row">其他 <b>非比賽管理時段</b></div>'):
- '<div class="list-scroller">'+current.map(g=>'<div class="game-row"><small>'+toDate(g.scheduled_at)+'</small><div><span>'+escape(tname(g.away_team_id))+'</span><b>'+(g.away_score??'—')+' : '+(g.home_score??'—')+'</b><span>'+escape(tname(g.home_team_id))+'</span></div></div>').join('')+(current.length?'':empty('目前尚無賽程紀錄'))+'</div>');
+ const tabs=[['schedule','聯盟賽程'],['results','最新戰報'],['rules','賽事週期']];
+ return '<div class="switch-tabs arena-tabs">'+tabs.map(([id,name])=>'<button data-gametab="'+id+'" class="'+(state.gameTab===id?'selected':'')+'">'+name+'</button>').join('')+'</div>'+
+ (state.gameTab==='rules'?'<div class="league-schedule">'+
+ [['MON','週一訓練','球員成長、簽約結算'],['TUE–FRI','例行賽','08:00 – 23:00'],['SAT','季後賽','12:00 – 20:00'],['OFF','休賽管理','陣容與市場管理']].map(([day,title,desc])=>'<div class="schedule-cycle"><span>'+day+'</span><div><b>'+title+'</b><small>'+desc+'</small></div></div>').join('')+'</div>':
+ '<div class="list-scroller match-feed">'+current.map(g=>'<div class="match-card"><div class="match-card-label"><span>'+escape(g.season_stage==='playoff'?'季後賽':'例行賽')+'</span><small>'+toDate(g.scheduled_at)+'</small></div><div class="match-card-grid"><div><b>'+escape(tname(g.away_team_id))+'</b><small>客隊</small></div><strong>'+(g.away_score??'—')+'<i>:</i>'+(g.home_score??'—')+'</strong><div><b>'+escape(tname(g.home_team_id))+'</b><small>主隊</small></div></div></div>').join('')+(current.length?'':empty('目前還沒有賽事紀錄，聯盟啟動後將在此顯示'))+'</div>');
 }
 function market(){
  const all=gm()?(state.gmMarket?.players||[]):(state.fa?.players||[]);
- const list=all.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
- return '<div class="market-banner">'+(gm()?'GM 專屬平行市場：可即時簽約或續約，只變更 GM 聯盟球員。':'正式六隊自由球員市場：一般報價依聯盟規則結算。')+'</div>'+
- '<div class="inline-search"><input id="filter-market" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-market">查詢</button></div>'+
- '<div class="list-scroller">'+list.slice(0,200).map(p=>'<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+escape(gm()?tname(p.team_id)+' · '+(p.team_id===ownTeam()?'可續約':'可簽入'):'自由球員')+'</small></span><button class="mini" data-sign="'+p.master_player_id+'">'+(gm()?'簽約':'報價')+'</button></div>').join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
+ const current=gm()?all.filter(p=>state.marketTab==='own'?p.team_id===ownTeam():p.team_id!==ownTeam()):all;
+ const list=current.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
+ return '<div class="market-hero"><span>PLAYER MARKET // '+escape(state.session?.year||'2024')+'</span><b>'+(gm()?'平行宇宙 · 即時交易':'自由球員競價市場')+'</b><small>'+(gm()?'在自己的平行球團自由簽人，不影響正式六隊':'球員提出報價後，依聯盟週期結算')+'</small></div>'+
+ (gm()?'<div class="switch-tabs"><button data-markettab="available" class="'+(state.marketTab==='available'?'selected':'')+'">市場球員</button><button data-markettab="own" class="'+(state.marketTab==='own'?'selected':'')+'">本隊續約</button></div>':'')+
+ '<div class="inline-search"><input id="filter-market" placeholder="搜尋姓名 / 球員" value="'+escape(state.search)+'"><button data-action="search-market">搜尋</button></div>'+
+ '<div class="list-scroller market-rows">'+list.slice(0,220).map(p=>'<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><span class="row-main"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+escape(gm()?tname(p.team_id):'自由身分')+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></span><button class="mini" data-sign="'+p.master_player_id+'">'+(gm()?(p.team_id===ownTeam()?'續約':'簽入'):'報價')+'</button></div>').join('')+(list.length?'':empty('此分類暫時沒有符合條件的球員'))+'</div>';
 }
 function finance(){
- const f=state.session?.finances?.find(x=>x.team_id===ownTeam());
- return box('球團財務','<div class="financial-row"><span>現有資金</span><b>'+money(f?.cash_ntd)+'</b></div><div class="financial-row"><span>負債</span><b>'+money(f?.debt_ntd)+'</b></div><p class="quiet">球團財務功能持續建置中。GM 平行球團的球員簽約不會修改正式六隊財務。</p>')+btn('前往自由球員市場','market','◇');
+ const f=state.session?.finances?.find(x=>x.team_id===ownTeam()),r=state.session?.roster_summary||{};
+ const payroll=Number(r.monthly_payroll_ntd||0),cash=Number(f?.cash_ntd||0);
+ return '<div class="finance-arena"><span>FRONT OFFICE // FINANCE</span><small>球團財務中心</small><strong>NT$ '+fmt(cash)+'</strong><p>可運用球團資金</p></div>'+
+ '<div class="finance-ledger"><div><small>目前球員月薪總額</small><strong>'+money(payroll)+'</strong><span>一、二軍合計</span></div><div><small>預估全年固定薪資</small><strong>'+money(payroll*12)+'</strong><span>以月薪 × 12 計算</span></div><div><small>負債</small><strong>'+money(f?.debt_ntd)+'</strong><span>目前帳面紀錄</span></div></div>'+
+ '<div class="finance-action">'+btn('查看簽約市場','market','◇')+'</div><p class="quiet">目前為遊戲初始 2024 薪資基準。公開報導、薪資整理與遊戲推估已在球員詳細資料區分。'+(gm()?' GM 交易不影響正式球隊。':'')+'</p>';
 }
 function club(){
  return box('球團資訊','<div class="financial-row"><span>所屬球隊</span><b>'+escape(gm()?'GM 平行球團':tname(ownTeam()))+'</b></div><div class="financial-row"><span>遊戲球季</span><b>'+escape(state.session?.year)+'</b></div><div class="financial-row"><span>管理模式</span><b>'+(gm()?'獨立模擬':'六隊真人')+'</b></div>');
@@ -236,6 +243,7 @@ root.addEventListener('click',async e=>{
  }
  if(b.dataset.filter){state.filter=b.dataset.filter;render();return;}
  if(b.dataset.gametab){state.gameTab=b.dataset.gametab;render();return;}
+ if(b.dataset.markettab){state.marketTab=b.dataset.markettab;state.search='';render();return;}
  if(b.dataset.view){state.view=state.view===b.dataset.view?'':b.dataset.view;render();return;}
  if(b.dataset.player){openPlayer(Number(b.dataset.player));return;}
  if(b.dataset.openingToggle){const id=Number(b.dataset.openingToggle);const selected=state.openingIds||[];state.openingIds=selected.includes(id)?selected.filter(x=>x!==id):selected.length<28?[...selected,id]:selected;render();return;}
