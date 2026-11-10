@@ -2,8 +2,8 @@ import {TEAMS} from '../config.js';
 import {signIn,signOut,apiCall,getSessionMetadata} from '../backend/auth.js';
 
 const root=document.querySelector('#app');
-const GAME_VERSION='0.03';
-const GAME_BUILD='20261110-18';
+const GAME_VERSION='0.04';
+const GAME_BUILD='20261110-19';
 let availableBuild=null;
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
@@ -27,7 +27,7 @@ function login(){
 }
 function top(){
  const club=gm()?'GM 平行球團':tname(ownTeam());
- return '<header class="top game-top"><div class="top-brand"><button type="button" class="logo game-logo game-version-button" data-action="check-version" title="檢查遊戲更新" aria-label="檢查遊戲更新，版本 0.03">0.03</button><div><b>鑽石王朝</b><small>'+escape(club)+'</small></div></div><div class="top-tools"><span class="season-plate">S'+escape(state.session?.year||'2024')+'</span><button type="button" data-action="logout" aria-label="登出">⏻</button></div></header>';
+ return '<header class="top game-top"><div class="top-brand"><button type="button" class="logo game-logo game-version-button" data-action="check-version" title="檢查遊戲更新" aria-label="檢查遊戲更新，版本 0.04">0.04</button><div><b>鑽石王朝</b><small>'+escape(club)+'</small></div></div><div class="top-tools"><span class="season-plate">S'+escape(state.session?.year||'2024')+'</span><button type="button" data-action="logout" aria-label="登出">⏻</button></div></header>';
 }
 const navItems=[['home','首頁','⌂'],['roster','球員','▤'],['coach','戰術','⚑'],['season','賽事','◷'],['market','市場','◇']];
 function bottom(){return '<nav class="bottom">'+navItems.map(([id,name,icon])=>'<button data-page="'+id+'" class="'+(state.page===id?'on':'')+'"><b>'+icon+'</b><span>'+name+'</span></button>').join('')+'</nav>'}
