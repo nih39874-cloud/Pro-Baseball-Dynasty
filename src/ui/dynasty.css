@@ -548,3 +548,24 @@ html,body{margin:0;width:100%;min-width:0;max-width:100%;height:100%;overflow:hi
 @media(min-width:650px){#app{max-width:520px!important;box-shadow:0 0 70px #0008}}
 @media(max-width:390px){#app .main{padding:7px 8px}#app .arena-actions{grid-template-rows:repeat(3,minmax(75px,auto))}#app .arena-tile{min-height:75px}#app .arena-tile-copy b{font-size:12px}#app .arena-head{border-radius:12px}#app .arena-center{gap:7px}#app .roster-action{max-width:84px}}
 @media(max-height:700px){#app .arena-actions{grid-template-rows:repeat(3,minmax(72px,auto))}#app .arena-tile{min-height:72px}#app .arena-kpis>div{padding:6px}#app .arena-ticker{display:none}#app .page-head h2{font-size:16px}}
+
+
+/* Version 0.01: tappable update indicator replacing the decorative diamond. */
+#app .top-brand .game-version-button{
+  appearance:none;display:grid;place-items:center;flex:none;
+  width:47px!important;min-width:47px;height:39px!important;
+  padding:0 3px;border:1px solid #f7faff69;border-radius:10px;
+  background:linear-gradient(145deg,var(--team),#1c3548)!important;
+  color:#fff!important;font-size:12px!important;font-weight:900!important;
+  letter-spacing:.2px;line-height:1;cursor:pointer;
+  clip-path:none!important;box-shadow:0 0 0 1px #0002,0 3px 12px #0004;
+  touch-action:manipulation;
+}
+#app .top-brand .game-version-button:active{filter:brightness(1.28);transform:scale(.97)}
+#app .top-brand .game-version-button:focus-visible{outline:2px solid #bcfa9c;outline-offset:2px}
+.update-version-panel{display:flex;flex-direction:column;gap:9px;padding:10px 0 16px}
+.update-version-panel span{color:#96b6c5;font-size:12px}
+.update-version-panel strong{font-size:20px;color:#c6f5a8}
+.update-version-panel small{color:#abc1d0;font-size:12px;line-height:1.6}
+.game-apply-update{width:100%;padding:13px;background:#aaf080;color:#183023;border:0;border-radius:10px;font-weight:900}
+@media(max-width:360px){#app .top-brand .game-version-button{width:42px!important;min-width:42px;height:34px!important;font-size:11px!important}}
