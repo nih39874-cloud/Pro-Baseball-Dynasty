@@ -122,7 +122,7 @@ html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   font-size: 11px !important;
   right: 9px !important; bottom: 7px !important;
 }
-#app .arena-ticker { flex: 0 0 auto !important; margin-top: auto !important; min-height: 26px; }
+#app .arena-ticker { flex: 0 0 auto !important; margin-top: 0 !important; min-height: 26px; }
 #app .arena-ticker span, #app .arena-ticker marquee { font-size: 11px !important; }
 
 /* The same readable baseline on other five screens. */
@@ -164,4 +164,51 @@ html, body { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 }
 @media (min-width: 720px) and (pointer: fine) {
   #app { max-width: 560px !important; margin-inline: auto !important; }
+}
+
+/* v0.04: stable proportions instead of pinning a tiny news ticker below a large empty gap. */
+#app .top {
+  height:70px!important; min-height:70px!important;
+  padding:10px 13px!important;
+}
+#app .top-brand .game-version-button {
+  min-width:52px!important;width:52px!important;
+  height:43px!important;font-size:13px!important;
+}
+#app .top-brand b {font-size:21px!important}
+#app .top-brand small {font-size:12px!important}
+#app .top-tools button {height:40px!important;width:40px!important}
+#app .top-tools .season-plate {font-size:13px!important}
+#app .bottom {
+  height:calc(72px + env(safe-area-inset-bottom,0px))!important;
+  min-height:calc(72px + env(safe-area-inset-bottom,0px))!important;
+}
+#app .bottom button {min-height:68px!important}
+#app .bottom button b {font-size:27px!important}
+#app .bottom button span {font-size:13px!important}
+#app .arena-home {
+  justify-content:flex-start!important;
+  align-content:start!important;
+}
+#app .arena-ticker {
+  margin-top:0!important;
+  margin-bottom:0!important;
+  justify-self:start!important;
+  min-height:30px;
+  order:0;
+}
+#app .arena-section {margin-top:4px!important}
+#app .arena-actions {margin-bottom:0!important}
+#app.mobile-viewport-corrected {
+  position:relative!important;
+  left:0!important;
+  top:0!important;
+}
+/* Small phones retain readable text and scroll the central panel when necessary. */
+@media(max-width:390px){
+ #app .top{height:62px!important;min-height:62px!important}
+ #app .bottom{height:calc(65px + env(safe-area-inset-bottom,0px))!important;min-height:calc(65px + env(safe-area-inset-bottom,0px))!important}
+ #app .bottom button{min-height:60px!important}
+ #app .top-brand b{font-size:19px!important}
+ #app .top-brand .game-version-button{height:38px!important;min-width:45px!important;width:45px!important}
 }
