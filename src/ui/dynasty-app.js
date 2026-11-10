@@ -2,6 +2,9 @@ import {TEAMS} from '../config.js';
 import {signIn,signOut,apiCall,getSessionMetadata} from '../backend/auth.js';
 
 const root=document.querySelector('#app');
+const GAME_VERSION='0.01';
+const GAME_BUILD='20261110-16';
+let availableBuild=null;
 const teamMap=Object.fromEntries(TEAMS.map(t=>[t.id,t]));
 const names=Object.fromEntries(TEAMS.map(t=>[t.id,t.name]));
 const state={session:null,page:'home',view:'',modal:null,roster:null,coach:null,fa:null,gmMarket:null,gmHistory:null,observer:null,diagnostics:null,gmBusy:false,seasonStats:null,awards:null,statTab:'batters',tradeBoard:null,tradeTargetTeam:null,
@@ -24,7 +27,7 @@ function login(){
 }
 function top(){
  const club=gm()?'GM 平行球團':tname(ownTeam());
- return '<header class="top game-top"><div class="top-brand"><span class="logo game-logo">◆</span><div><b>鑽石王朝</b><small>'+escape(club)+'</small></div></div><div class="top-tools"><span class="season-plate">S'+escape(state.session?.year||'2024')+'</span><button type="button" data-action="logout" aria-label="登出">⏻</button></div></header>';
+ return '<header class="top game-top"><div class="top-brand"><button type="button" class="logo game-logo game-version-button" data-action="check-version" title="檢查遊戲更新" aria-label="檢查遊戲更新，版本 0.01">0.01</button><div><b>鑽石王朝</b><small>'+escape(club)+'</small></div></div><div class="top-tools"><span class="season-plate">S'+escape(state.session?.year||'2024')+'</span><button type="button" data-action="logout" aria-label="登出">⏻</button></div></header>';
 }
 const navItems=[['home','首頁','⌂'],['roster','球員','▤'],['coach','戰術','⚑'],['season','賽事','◷'],['market','市場','◇']];
 function bottom(){return '<nav class="bottom">'+navItems.map(([id,name,icon])=>'<button data-page="'+id+'" class="'+(state.page===id?'on':'')+'"><b>'+icon+'</b><span>'+name+'</span></button>').join('')+'</nav>'}
@@ -287,6 +290,45 @@ function render(){
  root.style.setProperty('--team',c);
  root.innerHTML=top()+'<main class="main"><div class="page-head"><h2>'+labels[state.page]+'</h2><button type="button" class="tiny-button" data-action="refresh">⟳</button></div>'+(state.notice?'<div class="notice" role="status">'+escape(state.notice)+'</div>':'')+'<div class="page-body">'+body+'</div></main>'+bottom()+modal();
 }
+async function checkGameVersion(){
+ state.notice='正在檢查遊戲更新…';render();
+ try{
+  const url=new URL('../../version.json',import.meta.url);
+  url.searchParams.set('check',Date.now().toString());
+  const response=await fetch(url,{cache:'no-store'});
+  if(!response.ok)throw new Error('版本伺服器未回應（HTTP '+response.status+'）');
+  const remote=await response.json();
+  if(typeof remote.build!=='string'||!/^[0-9A-Za-z.-]{3,64}$/.test(remote.build))throw new Error('版本資訊格式錯誤');
+  if(remote.build!==GAME_BUILD){
+   availableBuild=remote.build;
+   state.modal={title:'發現新版本',content:'<div class="update-version-panel"><span>目前版本 v'+escape(GAME_VERSION)+'</span><strong>可用版本 v'+escape(remote.version||GAME_VERSION)+'</strong><small>點選更新後將重新載入遊戲。雲端球隊資料不會刪除。</small></div><button class="main-action game-apply-update" data-action="apply-version-update">立即更新遊戲</button>'};
+   state.notice='';
+  }else{
+   availableBuild=null;
+   state.notice='已是最新版 v'+GAME_VERSION+'（'+GAME_BUILD+'）';
+  }
+ }catch(error){
+  state.notice='檢查更新失敗：'+(error.message||'請檢查網路');
+ }
+ render();
+}
+async function applyGameUpdate(){
+ if(!availableBuild){await checkGameVersion();return;}
+ state.modal=null;state.notice='正在更新遊戲…';render();
+ try{
+  if('serviceWorker' in navigator){
+   const registration=await navigator.serviceWorker.getRegistration('./');
+   if(registration)await registration.update();
+  }
+  if('caches' in window){
+   const keys=await caches.keys();
+   await Promise.all(keys.filter(k=>k.startsWith('diamond-dynasty-')).map(k=>caches.delete(k)));
+  }
+ }catch(error){/* Continue with cache-busted reload. */}
+ const url=new URL('./',location.href);
+ url.searchParams.set('v',availableBuild);
+ location.replace(url.toString());
+}
 async function load(){
  try{
  if(state.page==='home'||state.page==='season'||state.page==='finance'||state.page==='club')state.session=await apiCall('status');
@@ -398,6 +440,8 @@ root.addEventListener('click',async e=>{
  else if(action==='cancel-opening'){state.openingMode=false;state.search='';render();}
  else if(action==='save-opening'){try{await apiCall('first-team-save',{team_id:ownTeam(),player_ids:state.openingIds||[]});state.roster=await apiCall('roster',{team_id:ownTeam()});state.openingMode=false;state.search='';state.notice='新球季一軍名單已提交，開季前仍可修改。';render();}catch(err){state.notice=err.message||'名單提交失敗';render();}}
  else if(action==='logout'){await signOut();state.session=null;state.notice='';render();}
+ else if(action==='check-version'){void checkGameVersion();}
+ else if(action==='apply-version-update'){void applyGameUpdate();}
  else if(action==='refresh'){void load();}
  else if(action==='close-modal'){state.modal=null;render();}
  else if(action==='search-roster'){state.search=root.querySelector('#filter-players')?.value.trim()||'';render();}
