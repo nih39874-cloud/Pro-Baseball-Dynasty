@@ -60,9 +60,10 @@ function roster(){
  const seasonClosed=d.season_finished||['offseason','finished','completed','complete','ended','season_end'].includes(d.phase);
  const moveEnabled=gm()||(!pending&&!seasonClosed);
  const eligible=all.filter(p=>['active','reserve'].includes(p.roster_status));
- const selected=all.filter(p=>state.filter==='all'||(state.filter==='active'?p.roster_status==='active':p.roster_status==='reserve'));
+ const selected=all.filter(p=>state.filter==='all'||(state.filter==='active'?p.roster_status==='active':state.filter==='reserve'?p.roster_status==='reserve':state.filter==='future'?p.roster_status==='future':['2025','2026'].includes(state.filter)?p.roster_status==='future'&&Number(p.players_master?.source_year)===Number(state.filter):false));
  const list=selected.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
- const tabs=[['all','全部'],['active','一軍'],['reserve','二軍']];
+ const futureCount=all.filter(p=>p.roster_status==='future').length;
+ const tabs=[['all','全部'],['active','一軍'],['reserve','二軍'],['future','新秀']];
  if(state.openingMode&&pending&&!gm()){
   const selectedIds=state.openingIds||[];
   const rows=eligible.filter(p=>!state.search||String(p.players_master?.full_name||'').includes(state.search));
@@ -73,22 +74,22 @@ function roster(){
    '<div class="roster-actions"><button class="secondary-action" data-action="cancel-opening">返回</button><button class="primary-action" data-action="save-opening" '+(selectedIds.length===Math.min(28,eligible.length)?'':'disabled')+'>確認開季名單</button></div>';
  }
  const line=p=>{
-  const active=p.roster_status==='active',reserve=p.roster_status==='reserve';
+  const active=p.roster_status==='active',reserve=p.roster_status==='reserve',future=p.roster_status==='future';
   const availableAt=reserve&&p.promotion_available_at?new Date(p.promotion_available_at).getTime():0;
   const cooldown=!gm()&&reserve&&availableAt>Date.now();
   const full=reserve&&currentActive>=28;
   const blocked=cooldown||full;
   const action=active?'下二軍':reserve?'升一軍':null;
   const label=cooldown?'冷卻至 '+new Date(availableAt).toLocaleTimeString('zh-TW',{timeZone:'Asia/Taipei',hour:'2-digit',minute:'2-digit',hour12:false}):full?'一軍已滿':action;
-  return '<div class="list-row"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(active?'一軍':reserve?'二軍／預備':'其他狀態')+' · '+(p.condition?.injury_games_remaining?'傷停 '+p.condition.injury_games_remaining+' 場':'疲勞 '+(p.condition?.fatigue||0)+'%')+' · 月薪 '+money(p.monthly_salary_ntd)+'</small></button>'+
-   (action&&moveEnabled?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
+  return '<div class="list-row '+(future?'future-roster-row':'')+'"><span class="position">'+escape(p.players_master?.primary_position||'—')+'</span><button class="player-name" data-player="'+p.master_player_id+'"><strong>'+escape(p.players_master?.full_name||p.master_player_id)+'</strong><small>'+(future?String(p.players_master?.source_year||'未定')+' 年新秀 · 尚未開放登錄':(active?'一軍':reserve?'二軍／預備':'其他狀態')+' · '+(p.condition?.injury_games_remaining?'傷停 '+p.condition.injury_games_remaining+' 場':'疲勞 '+(p.condition?.fatigue||0)+'%')+' · 月薪 '+money(p.monthly_salary_ntd))+'</small></button>'+
+   (future?'<span class="future-year-tag">'+escape(p.players_master?.source_year||'新秀')+'</span>':action&&moveEnabled?'<button class="mini roster-action" data-move="'+p.master_player_id+'" data-to="'+(active?'reserve':'active')+'" '+(blocked?'disabled':'')+'>'+escape(label)+'</button>':'')+'</div>';
  };
  const notice=gm()?'GM 平行測試模式：一、二軍隨時可升降，不受開季、季末與 4 小時冷卻限制；一軍仍限 28 人。':pending?'目前尚未開賽：請按上方「選擇開季 28 人」，勾選要升一軍的球員。開賽後恢復單人升降按鈕。':seasonClosed?'本球季已結束：一軍／二軍升降停用，等待下季選名單。':'降二軍後 4 小時才能再升一軍；升一軍後可立即下放。';
- return '<div class="compact-summary"><div><small>全部球員</small><b>'+all.length+'</b></div><div><small>一軍名單</small><b>'+currentActive+'/28</b></div><div><small>季末上限</small><b>60</b></div></div>'+
+ return '<div class="compact-summary"><div><small>已入隊</small><b>'+eligible.length+'</b></div><div><small>一軍名單</small><b>'+currentActive+'/28</b></div><div><small>未來新秀</small><b>'+futureCount+'</b></div></div>'+
  (pending&&!gm()?'<button class="opening-entry" data-action="open-opening"><span>選擇開季 28 人（含升一軍）</span><strong>'+(d.opening_roster?.source==='manual'?'已提交 · 可修改':'預設沿用上季')+' ›</strong></button>':'')+
- '<div class="switch-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+'</button>').join('')+'</div>'+
+ '<div class="switch-tabs roster-tabs">'+tabs.map(([id,label])=>'<button data-filter="'+id+'" class="'+(state.filter===id?'selected':'')+'">'+label+(id==='future'?' '+futureCount:'')+'</button>').join('')+'</div>'+
  '<div class="inline-search"><input id="filter-players" placeholder="搜尋球員姓名" value="'+escape(state.search)+'"><button data-action="search-roster">查詢</button></div>'+
- '<div class="roster-tip">'+notice+'</div><button class="roster-stats-entry" data-page="stats">查看本球季球員投打成績 ›</button>'+
+ '<div class="roster-tip">'+(['future','2025','2026'].includes(state.filter)?'2025／2026 年新秀可查看資料；到對應遊戲球季才開放登錄，不計入目前一軍或月薪。':notice)+'</div>'+(['future','2025','2026'].includes(state.filter)?'<div class="future-year-switch"><button data-filter="future" class="'+(state.filter==='future'?'selected':'')+'">全部</button><button data-filter="2025" class="'+(state.filter==='2025'?'selected':'')+'">2025</button><button data-filter="2026" class="'+(state.filter==='2026'?'selected':'')+'">2026</button></div>':'')+'<button class="roster-stats-entry" data-page="stats">查看本球季球員投打成績 ›</button>'+
  '<div class="list-scroller">'+list.map(line).join('')+(list.length?'':empty('沒有符合條件的球員'))+'</div>';
 }
 const defenseSlots=[['P','投手'],['C','捕手'],['1B','一壘'],['2B','二壘'],['3B','三壘'],['SS','游擊'],['LF','左外'],['CF','中外'],['RF','右外'],['DH','指定打擊']];
@@ -261,8 +262,17 @@ function modal(){
 }
 function openPlayer(id){
  const p=(state.roster?.players||[]).find(x=>x.master_player_id===id);if(!p)return;
- const master=p.players_master||{};
- state.modal={title:master.full_name||'球員資料',content:'<div class="player-game-heading"><span>'+escape(master.primary_position||'—')+'</span><b>'+escape(master.full_name||'球員')+'</b><small>'+(master.draft_year===2024?'2024 選秀第 '+escape(master.draft_round)+' 輪':'職棒球員')+'</small></div><div class="financial-row"><span>名單狀態</span><b>'+escape(p.roster_status==='active'?'一軍':'二軍／預備')+'</b></div><div class="financial-row"><span>2024 參考打擊率</span><b>'+publicStats(p).avg+'</b></div><div class="financial-row"><span>2024 參考防禦率</span><b>'+publicStats(p).era+'</b></div><div class="financial-row"><span>月薪</span><b>'+money(p.monthly_salary_ntd)+'</b></div><div class="financial-row"><span>薪資來源</span><b>'+salaryTag(p)+'</b></div><div class="financial-row"><span>合約年限</span><b>'+escape(p.contract_years||'—')+'</b></div><p class="quiet">2024 公開成績與遊戲估值僅供球團決策參考，不顯示隱藏戰力。</p>'};render();
+ const master=p.players_master||{},future=p.roster_status==='future';
+ const status=future?'未來新秀 · '+(master.source_year||'')+' 年才開放':p.roster_status==='active'?'一軍':'二軍／預備';
+ const title=master.full_name||'球員資料';
+ const salary=future?'尚未生效':money(p.monthly_salary_ntd);
+ state.modal={title,content:'<div class="player-game-heading"><span>'+escape(master.primary_position||'—')+'</span><b>'+escape(title)+'</b><small>'+escape(master.source_year||'')+'</small></div>'+
+ '<div class="financial-row"><span>名單狀態</span><b>'+escape(status)+'</b></div>'+
+ '<div class="financial-row"><span>選秀年度</span><b>'+escape(master.draft_year||master.source_year||'—')+'</b></div>'+
+ (future?'':'<div class="financial-row"><span>2024 參考打擊率</span><b>'+publicStats(p).avg+'</b></div><div class="financial-row"><span>2024 參考防禦率</span><b>'+publicStats(p).era+'</b></div>')+
+ '<div class="financial-row"><span>月薪</span><b>'+salary+'</b></div>'+
+ '<div class="financial-row"><span>合約年限</span><b>'+(future?'未生效':escape(p.contract_years||'—'))+'</b></div>'+
+ '<p class="quiet">'+(future?'這名球員保留在選秀年資料庫，必須進入對應遊戲球季才能升降一二軍或排入先發。':'薪資來源：'+salaryTag(p)+'。目前不顯示球員真正隱藏能力。')+'</p>'};render();
 }
 function openSign(id){
  const p=(gm()?state.gmMarket?.players:state.fa?.players||[])?.find(x=>x.master_player_id===id);
