@@ -505,3 +505,46 @@ html,body{width:100%;min-width:0;overflow:hidden}
  #app{border-left:1px solid #364a5f;border-right:1px solid #364a5f}
  #app .arena-tile-copy b{font-size:14px}
 }
+
+
+/* Responsive shell v15: full-width portrait playfield, no fixed-height page clipping. */
+:root{--game-vh:100dvh}
+html,body{margin:0;width:100%;min-width:0;max-width:100%;height:100%;overflow:hidden}
+#app{margin:0 auto!important;max-width:none!important;width:100%!important;height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden;isolation:isolate}
+#app>.top{flex:0 0 auto;min-width:0;width:100%;height:auto;min-height:54px!important;padding:8px max(12px,env(safe-area-inset-right,0px)) 8px max(12px,env(safe-area-inset-left,0px))}
+#app>.main{flex:1 1 0;min-height:0;width:100%;max-width:100%;overflow:hidden;padding:10px max(10px,env(safe-area-inset-right,0px)) 10px max(10px,env(safe-area-inset-left,0px))}
+#app .page-head{flex:0 0 auto}
+#app .page-body{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1 1 0;overflow:hidden}
+#app .page-body>.arena-home,#app .page-body>.gm-lab{flex:1 1 auto;min-height:0;max-height:100%;overflow-y:auto;overscroll-behavior:contain}
+#app .page-body>.panel:only-child{min-height:0;max-height:100%;overflow-y:auto;flex:1}
+#app .page-body>.list-scroller{min-height:90px;flex:1 1 auto}
+#app>.bottom{position:relative;z-index:4;flex:0 0 auto;height:calc(63px + env(safe-area-inset-bottom,0px))!important;min-height:calc(63px + env(safe-area-inset-bottom,0px))!important;padding:0 4px env(safe-area-inset-bottom,0px);width:100%;overflow:hidden}
+#app>.bottom button{min-width:0;min-height:58px;width:100%;justify-content:center;gap:3px}
+#app>.bottom button span{line-height:1.1;font-size:11px}
+#app>.bottom button b{font-size:21px}
+#app .arena-home{height:100%;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:10px;padding-bottom:8px}
+#app .arena-head{flex-shrink:0}
+#app .arena-actions{flex:0 0 auto;grid-template-rows:repeat(3,minmax(83px,auto));min-height:0;gap:8px}
+#app .arena-tile{min-height:83px}
+#app .arena-tile-copy{width:100%;min-width:0}
+#app .arena-tile-copy b{font-size:clamp(12px,3.2vw,15px)}
+#app .arena-tile-copy small{max-width:100%;white-space:nowrap}
+#app .arena-kpis{flex:0 0 auto;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,.9fr)}
+#app .arena-kpis>div{min-width:0}
+#app .arena-kpis b{font-size:clamp(15px,4.4vw,22px)}
+#app .arena-club strong{font-size:clamp(19px,5.4vw,25px)}
+#app .editor-rows{flex:1 1 0;min-height:0;overflow-y:auto}
+#app .editor-rows.defense-rows{grid-template-rows:repeat(10,minmax(42px,1fr))}
+#app .roster-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));flex:0 0 auto}
+#app .roster-tabs button{min-width:0;padding:9px 2px}
+#app .recent-draft-roster-row{background:linear-gradient(90deg,#243a4d,#172b3b)}
+#app .recent-draft-roster-row .player-name strong{color:#c9f5db}
+#app .recent-draft-roster-row .player-name small{color:#9dbdc9}
+#app .future-year-switch{flex:0 0 auto}
+#app .market-rows .list-row{min-height:64px}
+#app .roster-action{max-width:100px}
+#app .player-name{min-width:0;overflow:hidden}
+#app .player-name strong,#app .row-main strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(min-width:650px){#app{max-width:520px!important;box-shadow:0 0 70px #0008}}
+@media(max-width:390px){#app .main{padding:7px 8px}#app .arena-actions{grid-template-rows:repeat(3,minmax(75px,auto))}#app .arena-tile{min-height:75px}#app .arena-tile-copy b{font-size:12px}#app .arena-head{border-radius:12px}#app .arena-center{gap:7px}#app .roster-action{max-width:84px}}
+@media(max-height:700px){#app .arena-actions{grid-template-rows:repeat(3,minmax(72px,auto))}#app .arena-tile{min-height:72px}#app .arena-kpis>div{padding:6px}#app .arena-ticker{display:none}#app .page-head h2{font-size:16px}}
