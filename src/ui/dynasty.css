@@ -545,7 +545,7 @@ html,body{margin:0;width:100%;min-width:0;max-width:100%;height:100%;overflow:hi
 #app .roster-action{max-width:100px}
 #app .player-name{min-width:0;overflow:hidden}
 #app .player-name strong,#app .row-main strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-@media(min-width:650px){#app{max-width:520px!important;box-shadow:0 0 70px #0008}}
+/* Removed the 520px desktop-style cap: phones in desktop viewport mode must also fill their screen. */
 @media(max-width:390px){#app .main{padding:7px 8px}#app .arena-actions{grid-template-rows:repeat(3,minmax(75px,auto))}#app .arena-tile{min-height:75px}#app .arena-tile-copy b{font-size:12px}#app .arena-head{border-radius:12px}#app .arena-center{gap:7px}#app .roster-action{max-width:84px}}
 @media(max-height:700px){#app .arena-actions{grid-template-rows:repeat(3,minmax(72px,auto))}#app .arena-tile{min-height:72px}#app .arena-kpis>div{padding:6px}#app .arena-ticker{display:none}#app .page-head h2{font-size:16px}}
 
@@ -569,3 +569,31 @@ html,body{margin:0;width:100%;min-width:0;max-width:100%;height:100%;overflow:hi
 .update-version-panel small{color:#abc1d0;font-size:12px;line-height:1.6}
 .game-apply-update{width:100%;padding:13px;background:#aaf080;color:#183023;border:0;border-radius:10px;font-weight:900}
 @media(max-width:360px){#app .top-brand .game-version-button{width:42px!important;min-width:42px;height:34px!important;font-size:11px!important}}
+
+
+/* Game viewport 0.02 — no centered narrow column at any breakpoint. */
+html,body{margin:0!important;padding:0!important;width:100%!important;max-width:none!important;min-width:0!important;overflow:hidden!important}
+#app{
+ width:100vw!important;max-width:100vw!important;min-width:0!important;
+ margin:0!important;padding:0!important;
+ border-left:0!important;border-right:0!important;border-inline:0!important;
+ box-shadow:none!important;
+ height:100vh;height:100dvh;
+}
+@media(min-width:521px){
+ #app{max-width:100vw!important;width:100vw!important;margin:0!important;border-inline:0!important}
+}
+@media(min-width:650px){
+ #app{max-width:100vw!important;width:100vw!important;margin:0!important;border:0!important;box-shadow:none!important}
+}
+/* Fill available vertical space with actual tappable mode panels, not dead space. */
+#app .arena-home{display:flex;flex-direction:column;min-height:100%;height:100%;overflow-y:auto;gap:9px}
+#app .arena-actions{flex:1 1 auto;min-height:270px;grid-template-rows:repeat(3,minmax(78px,1fr));align-content:stretch}
+#app .arena-tile{min-height:78px}
+#app .arena-tile-copy b{font-size:clamp(13px,3.5vw,17px)}
+#app .arena-tile-copy small{font-size:clamp(10px,2.5vw,12px)}
+#app .arena-ticker{flex:0 0 auto}
+@media(max-height:670px){
+ #app .arena-actions{min-height:240px;grid-template-rows:repeat(3,minmax(70px,1fr))}
+ #app .arena-tile{min-height:70px}
+}
