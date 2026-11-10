@@ -10,7 +10,7 @@
  */
 (function(){
   'use strict';
-  const enabledByDevice=/Android|iPhone|iPod/i.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&matchMedia('(pointer:coarse)').matches);
+  const enabledByDevice=/Android|iPhone|iPod/i.test(navigator.userAgent)||navigator.maxTouchPoints>1;
   if(!enabledByDevice)return;
   const root=document.getElementById('app');
   if(!root)return;
