@@ -270,7 +270,7 @@ Deno.serve(async (req: Request) => {
       need(allowedTeam, 'TEAM_NOT_ALLOWED');
       const [players,rosters,offers,opening,champ,started] = await Promise.all([
         db.from('league_players').select('master_player_id,team_id,roster_status,monthly_salary_ntd,contract_years,fa_service_seasons,promotion_available_at,fa_service_initial_estimate,fa_initial_eligible_reported,fa_2024_service_reported,fa_usage_min_seasons,fa_qualification_threshold,fa_qualify_note,salary_verified,fa_years_verified,players_master(full_name,primary_position,source_year,is_import,draft_year,data_confidence,official_cpbl_id,bats,throws,birth_date)')
-          .eq('league_id',league.id).eq('team_id',pickTeam).neq('roster_status','future').order('master_player_id').limit(250),
+          .eq('league_id',league.id).eq('team_id',pickTeam).order('master_player_id').limit(250),
         db.from('roster_submissions').select('kind,player_ids,locked,auto_selected,submitted_at')
           .eq('league_id',league.id).eq('timeline_id',league.active_timeline_id).eq('season_year',league.current_year).eq('team_id',pickTeam),
         db.from('fa_offers').select('id,player_id,salary_ntd,years,status,created_at')
